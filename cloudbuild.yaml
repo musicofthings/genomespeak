@@ -1,0 +1,93 @@
+# cloudbuild.yaml
+# Google Cloud Build pipeline for GenomeSpeak
+# Triggered automatically on push to main branch.
+#
+# Steps:
+#   1. Run unit tests (no GCP credentials needed)
+#   2. Build Docker image
+#   3. Push to Artifact Registry
+#   4. Deploy to Cloud Run (asia-south1 — Hyderabad/Mumbai region for India)
+#
+# Setup:
+#   gcloud builds triggers create github \
+#     --repo-name=genomespeak \
+#     --repo-owner=musicofthings \
+#     --branch-pattern=main \
+#     --build-config=cloudbuild.yaml
+
+substitutions:
+  _SERVICE_NAME: genomespeak
+  _REGION: asia-south1
+  _REPOSITORY: genomespeak-repo
+  _IMAGE: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+steps:
+
+  # ── Step 1: Run tests ────────────────────────────────────────────────────
+  - name: python:3.11-slim
+    id: test
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        pip install -q pydantic python-dotenv google-cloud-aiplatform pytest pytest-asyncio
+        python -m pytest tests/test_selector.py -v --tb=short
+        echo "All tests passed ✓"
+
+  # ── Step 2: Build image ──────────────────────────────────────────────────
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    args:
+      - build
+      - -t
+      - ${_IMAGE}:${SHORT_SHA}
+      - -t
+      - ${_IMAGE}:latest
+      - --cache-from
+      - ${_IMAGE}:latest
+      - .
+    waitFor: [test]
+
+  # ── Step 3: Push to Artifact Registry ────────────────────────────────────
+  - name: gcr.io/cloud-builders/docker
+    id: push
+    args:
+      - push
+      - --all-tags
+      - ${_IMAGE}
+    waitFor: [build]
+
+  # ── Step 4: Deploy to Cloud Run ──────────────────────────────────────────
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: deploy
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE_NAME}
+      - --image=${_IMAGE}:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --memory=2Gi
+      - --cpu=2
+      - --min-instances=0
+      - --max-instances=10
+      - --concurrency=80
+      - --timeout=300
+      - --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID}
+      - --set-env-vars=GOOGLE_CLOUD_LOCATION=us-central1
+      - --set-secrets=GENOMESPEAK_RAG_CORPUS=genomespeak-rag-corpus:latest
+      - --service-account=genomespeak-sa@${PROJECT_ID}.iam.gserviceaccount.com
+    waitFor: [push]
+
+images:
+  - ${_IMAGE}:${SHORT_SHA}
+  - ${_IMAGE}:latest
+
+# Notify on success
+# (add Slack/email notification step here in production)
