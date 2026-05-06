@@ -38,6 +38,7 @@ COPY --from=builder /install /usr/local
 # Copy application code
 COPY genomespeak/ ./genomespeak/
 COPY api/          ./api/
+COPY frontend/     ./frontend/
 COPY scripts/      ./scripts/
 
 # Cloud Run injects PORT env var; default 8080

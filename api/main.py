@@ -20,12 +20,13 @@ import logging
 import os
 import time
 import uuid
+from pathlib import Path
 from typing import AsyncIterator
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -240,6 +241,13 @@ async def get_session(session_id: str):
 # ---------------------------------------------------------------------------
 
 @app.get("/")
+async def root():
+    index = Path(__file__).parent.parent / "frontend" / "index.html"
+    if index.exists():
+        return FileResponse(str(index), media_type="text/html")
+    return {"status": "ok", "service": "genomespeak", "version": "1.0.0"}
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "genomespeak", "version": "1.0.0"}
