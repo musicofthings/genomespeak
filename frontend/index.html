@@ -912,11 +912,10 @@ async function sendMessage() {
 function handleSSEEvent(event, bubbleId) {
   if (event.type === 'token') {
     appendToken(bubbleId, event.token);
-  } else if (event.type === 'meta') {
-    // Update selection info panel
-    // (model info arrives in the first token as plain text; meta gives session info)
-  } else if (event.type === 'done') {
-    // Done
+  } else if (event.type === 'error') {
+    appendToken(bubbleId, '⚠️ ' + (event.message || 'Unexpected error. Please try again.'));
+  } else if (event.type === 'meta' || event.type === 'done') {
+    // handled elsewhere
   }
 }
 
