@@ -63,6 +63,9 @@ PROJECT_ID = os.environ["GOOGLE_CLOUD_PROJECT"]
 LOCATION   = os.environ.get("GOOGLE_CLOUD_LOCATION", "global")
 RAG_CORPUS = os.environ.get("GENOMESPEAK_RAG_CORPUS", "")
 
+# Force ADK to use Vertex AI backend instead of Gemini API (which requires an API key)
+os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "1")
+
 vertexai.init(project=PROJECT_ID, location=LOCATION)
 
 # ---------------------------------------------------------------------------
