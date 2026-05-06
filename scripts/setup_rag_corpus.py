@@ -186,9 +186,8 @@ KNOWLEDGE_SOURCES = [
     },
     {
         "name": "cpic_guidelines_overview",
-        "description": "CPIC pharmacogenomics implementation guidelines",
-        "type": "web_url",
-        "uri": "https://cpicpgx.org/guidelines/",
+        "description": "CPIC pharmacogenomics guidelines — gene-drug pairs, phenotypes, dosing recommendations",
+        "type": "cpic_api",
         "chunk_size": 512,
         "chunk_overlap": 100,
     },
@@ -297,6 +296,69 @@ def _fetch_url(url: str) -> str:
     return _html_to_text(html)
 
 
+def _fetch_cpic_api() -> str:
+    """
+    Pull CPIC data from the public JSON API (no JS rendering needed).
+    Combines /guideline and /pair endpoints into structured plain text.
+    API docs: https://api.cpicpgx.org/
+    """
+    import json
+
+    def _get(path: str) -> list:
+        url = f"https://api.cpicpgx.org/v1{path}"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read())
+
+    lines: list[str] = ["# CPIC Pharmacogenomics Guidelines\n"]
+
+    # --- Guidelines list ---
+    logger.info("  Fetching CPIC /guideline ...")
+    try:
+        guidelines = _get("/guideline?select=name,genes,drugs,url,pharmgkbId&limit=100")
+        lines.append("## Published Guidelines\n")
+        for g in guidelines:
+            genes = ", ".join(g.get("genes") or [])
+            drugs = ", ".join(g.get("drugs") or [])
+            lines.append(f"### {g.get('name', '')}")
+            lines.append(f"Genes: {genes}")
+            lines.append(f"Drugs: {drugs}")
+            lines.append(f"URL: {g.get('url', '')}\n")
+    except Exception as exc:
+        logger.warning("  CPIC /guideline fetch failed: %s", exc)
+
+    # --- Gene-drug pairs with recommendations ---
+    logger.info("  Fetching CPIC /pair ...")
+    try:
+        pairs = _get(
+            "/pair?select=genesymbol,drugname,guidelinename,cpicstatus,"
+            "pgkbcalevel,citations&limit=300"
+        )
+        lines.append("## Gene-Drug Pairs and Evidence Levels\n")
+        for p in pairs:
+            lines.append(
+                f"Gene: {p.get('genesymbol', '')} | "
+                f"Drug: {p.get('drugname', '')} | "
+                f"Guideline: {p.get('guidelinename', '')} | "
+                f"CPIC Level: {p.get('cpicstatus', '')} | "
+                f"PharmGKB Level: {p.get('pgkbcalevel', '')}"
+            )
+    except Exception as exc:
+        logger.warning("  CPIC /pair fetch failed: %s", exc)
+
+    # --- Allele function definitions for key genes ---
+    for gene in ("CYP2D6", "CYP2C19", "DPYD", "TPMT", "SLCO1B1", "CYP2C9"):
+        logger.info("  Fetching CPIC /gene/%s ...", gene)
+        try:
+            data = _get(f"/gene/{gene}?select=symbol,functionalalleles,normalalleles,nofunction")
+            lines.append(f"\n## {gene} Allele Function Data")
+            lines.append(str(data))
+        except Exception:
+            pass
+
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------------------
 # GCS staging helper — shared by both import paths
 # ---------------------------------------------------------------------------
@@ -354,6 +416,17 @@ def import_source(
     elif source["type"] == "inline_text":
         logger.info("Staging inline text: %s", name)
         content = source["content"]
+
+    elif source["type"] == "cpic_api":
+        logger.info("Fetching CPIC API: %s", name)
+        try:
+            content = _fetch_cpic_api()
+        except Exception as exc:
+            logger.warning("  CPIC API fetch failed: %s — skipping", exc)
+            return
+        if len(content) < 200:
+            logger.warning("  CPIC API returned too little content — skipping")
+            return
 
     else:
         logger.warning("Unknown source type '%s' for %s", source["type"], name)
