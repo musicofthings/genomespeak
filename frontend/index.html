@@ -692,7 +692,9 @@ header {
 <script>
 // ─── State ────────────────────────────────────────────────────────────────────
 
-const API_BASE = window.location.origin; // same origin in production; override for dev
+const API_BASE = window.location.protocol === 'file:'
+  ? 'https://genomespeak-2j73ftnc7q-el.a.run.app'
+  : window.location.origin;
 // const API_BASE = 'http://localhost:8080'; // uncomment for local dev
 
 let state = {
