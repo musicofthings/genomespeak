@@ -132,8 +132,6 @@ class QueryClassifierAgent:
             temperature=0.0,
             max_output_tokens=512,
             response_mime_type="application/json",
-            # thinking_config: Flash-Lite at LOW
-            thinking_config={"thinking_level": "LOW"},
         )
 
     async def classify(

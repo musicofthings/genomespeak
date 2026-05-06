@@ -176,7 +176,6 @@ class DynamicAgentFactory:
         gen_config = GenerationConfig(
             temperature=cfg.temperature,
             max_output_tokens=cfg.max_output_tokens,
-            thinking_config={"thinking_level": cfg.thinking_level.value},
         )
 
         return LlmAgent(
@@ -205,7 +204,6 @@ class DynamicAgentFactory:
         gen_config = GenerationConfig(
             temperature=cfg.temperature,
             max_output_tokens=cfg.max_output_tokens,
-            thinking_config={"thinking_level": cfg.thinking_level.value},
         )
 
         return LlmAgent(
