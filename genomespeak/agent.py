@@ -313,7 +313,7 @@ class GenomeSpeakOrchestrator:
             user_id="user",
         )
 
-        from google.adk.types import Content, Part as AdkPart
+        from google.genai.types import Content, Part as AdkPart
         user_content = Content(
             role="user",
             parts=[AdkPart(text=enriched_query)],
