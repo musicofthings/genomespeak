@@ -364,6 +364,16 @@ class GenomeSpeakOrchestrator:
                 yield f'\x00AGENT:specialist:done\x00'
                 yield f'\x00AGENT:rewriter:running:{profile.user_mode.value}\x00'
 
+            # Stream specialist thought tokens so the frontend can show a thinking trace
+            if author and author.startswith("Specialist_"):
+                if event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if getattr(part, "thought", False) and part.text:
+                            safe = part.text.replace("\x00", "")
+                            if safe:
+                                yield f"\x00THINKING:{safe}\x00"
+                continue
+
             # Only stream the PlainLanguageAgent's output to the user
             if author != plain_lang_name:
                 continue

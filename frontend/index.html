@@ -606,6 +606,56 @@ textarea.chat-input::placeholder { color: var(--text-3); }
   gap: 5px;
 }
 
+/* Thinking trace */
+.trace-wrap {
+  margin: 0 0 12px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #2d2f45;
+  background: #13141f;
+}
+.trace-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  background: #1a1b2e;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+  color: #818cf8;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.trace-header:hover { background: #1e1f35; }
+.trace-pulse {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #818cf8;
+  animation: tracePulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.trace-wrap.done .trace-pulse { animation: none; background: #4ade80; }
+@keyframes tracePulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .4; transform: scale(.7); }
+}
+.trace-toggle { margin-left: auto; color: #4b5092; font-size: 10px; }
+.trace-body {
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 10px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #7c86c0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.trace-body::-webkit-scrollbar { width: 4px; }
+.trace-body::-webkit-scrollbar-thumb { background: #2d2f45; border-radius: 2px; }
+.trace-wrap.collapsed .trace-body { display: none; }
+
 /* Disclaimer */
 footer {
   background: #FFF8F0;
@@ -782,6 +832,7 @@ let st = {
   lastAnalysis:  '',
   lastQuery:     '',
   lastMode:      'patient',
+  traceId:       null,
 };
 
 // ── Specialist metadata ────────────────────────────────────────────────
@@ -837,6 +888,7 @@ function resetPipeline() {
   updateRewriterMeta(st.mode);
   document.getElementById('pipelineTimer').textContent = '';
   st.pipelineStart = Date.now();
+  clearThinkingTrace();
 }
 
 function updateRewriterMeta(mode) {
@@ -875,6 +927,8 @@ function handleAgentEvent(parts) {
   if (component === 'specialist' && status === 'running') {
     setNodeState('specialist', 'running');
     setNodeDetail('specialist', 'Analysing report…');
+    const spec = SPECIALISTS[args[0]] || { name: 'Specialist' };
+    createThinkingTrace(`${spec.name} reasoning…`);
   }
   if (component === 'specialist' && status === 'done') {
     setNodeState('specialist', 'done');
@@ -885,6 +939,58 @@ function handleAgentEvent(parts) {
     updateRewriterMeta(mode);
     setNodeState('rewriter', 'running');
     setNodeDetail('rewriter', mode === 'patient' ? 'Writing plain-language summary…' : 'Writing clinical summary…');
+  }
+}
+
+// ── Thinking trace ─────────────────────────────────────────────────────
+function createThinkingTrace(label) {
+  const id = 'trace-' + Date.now();
+  const wrap = document.createElement('div');
+  wrap.className = 'trace-wrap';
+  wrap.id = id;
+  wrap.innerHTML = `
+    <div class="trace-header" onclick="toggleTrace('${id}')">
+      <div class="trace-pulse"></div>
+      <span id="${id}-label">🧠 ${label || 'Specialist reasoning…'}</span>
+      <span class="trace-toggle" id="${id}-toggle">▼ hide</span>
+    </div>
+    <div class="trace-body" id="${id}-body"></div>`;
+  document.getElementById('chatMessages').appendChild(wrap);
+  scrollChat();
+  st.traceId = id;
+  return id;
+}
+function appendToThinkingTrace(text) {
+  if (!st.traceId) return;
+  const body = document.getElementById(st.traceId + '-body');
+  if (!body) return;
+  body.textContent += text;
+  // auto-scroll trace to bottom
+  body.scrollTop = body.scrollHeight;
+  scrollChat();
+}
+function collapseThinkingTrace() {
+  if (!st.traceId) return;
+  const wrap = document.getElementById(st.traceId);
+  if (!wrap) return;
+  wrap.classList.add('done', 'collapsed');
+  const lbl    = document.getElementById(st.traceId + '-label');
+  const toggle = document.getElementById(st.traceId + '-toggle');
+  const chars  = (document.getElementById(st.traceId + '-body')?.textContent || '').length;
+  if (lbl)    lbl.textContent = `🧠 AI reasoning complete (${chars.toLocaleString()} chars)`;
+  if (toggle) toggle.textContent = '▶ show';
+}
+function toggleTrace(id) {
+  const wrap   = document.getElementById(id);
+  const toggle = document.getElementById(id + '-toggle');
+  if (!wrap) return;
+  const collapsed = wrap.classList.toggle('collapsed');
+  if (toggle) toggle.textContent = collapsed ? '▶ show' : '▼ hide';
+}
+function clearThinkingTrace() {
+  if (st.traceId) {
+    document.getElementById(st.traceId)?.remove();
+    st.traceId = null;
   }
 }
 
@@ -1018,8 +1124,14 @@ async function send() {
             updateThinkingCard(thinkId, ev.message);
           } else if (ev.type === 'agent_event') {
             handleAgentEvent(ev.parts);
+          } else if (ev.type === 'thinking') {
+            appendToThinkingTrace(ev.text);
           } else if (ev.type === 'token') {
-            if (!cardId) { removeThinkingCard(thinkId); cardId = addAgentCard(st.mode); }
+            if (!cardId) {
+              collapseThinkingTrace();
+              removeThinkingCard(thinkId);
+              cardId = addAgentCard(st.mode);
+            }
             tokens.push(ev.token);
             appendToCard(cardId, ev.token);
           } else if (ev.type === 'error') {

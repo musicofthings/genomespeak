@@ -205,6 +205,8 @@ async def chat(request: Request):
                     elif inner.startswith('AGENT:'):
                         parts = inner[6:].split(':')
                         yield f"data: {json.dumps({'type': 'agent_event', 'parts': parts})}\n\n".encode()
+                    elif inner.startswith('THINKING:'):
+                        yield f"data: {json.dumps({'type': 'thinking', 'text': inner[9:]})}\n\n".encode()
                     continue
                 full_response.append(token)
                 yield f"data: {json.dumps({'type': 'token', 'token': token})}\n\n".encode()
