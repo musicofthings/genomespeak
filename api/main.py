@@ -195,6 +195,7 @@ async def chat(request: Request):
                 pdf_artifact_name=artifact_name,
                 pdf_bytes=session.get("pdf_bytes"),
                 session_has_prior_report=has_prior,
+                user_mode_override=user_mode,
             ):
                 # Intercept status sentinels emitted by the orchestrator
                 if token.startswith('\x00STATUS:') and token.endswith('\x00'):

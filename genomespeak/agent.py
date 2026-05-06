@@ -239,6 +239,7 @@ class GenomeSpeakOrchestrator:
         pdf_artifact_name: Optional[str] = None,
         pdf_bytes: Optional[bytes] = None,
         session_has_prior_report: bool = False,
+        user_mode_override: Optional[str] = None,
     ) -> AsyncIterator[str]:
         """
         Main processing pipeline. Yields response tokens as they stream.
@@ -259,6 +260,10 @@ class GenomeSpeakOrchestrator:
             session_has_prior_report=session_has_prior_report,
             pdf_filename=pdf_artifact_name,
         )
+        # Explicit frontend toggle overrides classifier inference for user_mode
+        if user_mode_override:
+            profile = profile.model_copy(update={"user_mode": UserMode(user_mode_override)})
+
         logger.info(
             "Profile: tier=%s report=%s mode=%s agent=%s",
             profile.complexity_tier.value,
@@ -334,11 +339,19 @@ class GenomeSpeakOrchestrator:
         parts.append(AdkPart(text=enriched_query))
         user_content = Content(role="user", parts=parts)
 
+        plain_lang_name = f"PlainLanguage_{profile.user_mode.value}"
+
         async for event in runner.run_async(
             user_id="user",
             session_id=session.id,
             new_message=user_content,
         ):
+            # Only stream the PlainLanguageAgent's output to the user.
+            # The specialist agent's output is intermediate — it feeds the
+            # PlainLanguageAgent but should not be shown in the chat bubble.
+            author = getattr(event, "author", None)
+            if author != plain_lang_name:
+                continue
             if event.content and event.content.parts:
                 for part in event.content.parts:
                     if part.text:
