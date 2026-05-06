@@ -23,7 +23,7 @@ A multi-agent AI system built entirely on Google ADK that explains complex lab a
 | Project Number | `1075013625841` | — |
 | RAG Corpus | `projects/1075013625841/locations/us-west1/ragCorpora/6917529027641081856` | ✅ Created |
 | RAG Region | `us-west1` | ✅ (us-central1 blocked for new projects) |
-| Cloud Run Region | `asia-south1` | Not yet deployed |
+| Cloud Run Region | `asia-south1` | ✅ Deployed — https://genomespeak-2j73ftnc7q-el.a.run.app |
 | GCS Staging Bucket | `genomespeak-genomespeak-rag-staging` | ✅ Created |
 | APIs enabled | aiplatform, run, cloudbuild, storage, firestore, artifactregistry, secretmanager | ✅ All enabled |
 | Billing | Linked | ✅ Active |
