@@ -15,9 +15,9 @@ from genomespeak.harness.models import ModelConfig, ThinkingLevel
 # Model string constants (Vertex AI endpoint identifiers)
 # ---------------------------------------------------------------------------
 
-GEMINI_31_PRO          = "gemini-2.5-pro"       # Flagship — reasoning depth
-GEMINI_3_FLASH         = "gemini-2.5-flash"     # Speed + quality balance
-GEMINI_31_FLASH_LITE   = "gemini-2.5-flash-lite" # Cost-optimised, high volume
+GEMINI_31_PRO          = "gemini-3.1-pro-preview"        # Flagship — reasoning depth
+GEMINI_3_FLASH         = "gemini-3-flash-preview"         # Speed + quality balance
+GEMINI_31_FLASH_LITE   = "gemini-3.1-flash-lite-preview"  # Cost-optimised, high volume
 
 
 # ---------------------------------------------------------------------------

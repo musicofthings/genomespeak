@@ -118,7 +118,7 @@ class QueryClassifierAgent:
     Executes in ~300ms. Returns a fully populated QueryProfile.
     """
 
-    MODEL_ID = "gemini-2.5-flash-lite"
+    MODEL_ID = "gemini-3.1-flash-lite-preview"
 
     def __init__(self, project_id: str, location: str = "us-central1"):
         self._project_id = project_id
