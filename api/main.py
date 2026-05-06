@@ -281,10 +281,12 @@ async def second_opinion(request: Request):
     if not grok_key:
         raise HTTPException(status_code=503, detail="GROK_API_KEY not configured on this server.")
 
-    session       = SESSION_STORE.get(session_id, {})
-    last_analysis = session.get("last_analysis", "")
-    last_query    = session.get("last_query", "")
-    user_mode     = session.get("last_mode", "patient")
+    session = SESSION_STORE.get(session_id, {})
+    # Prefer server-side session; fall back to values sent by the frontend
+    # (Cloud Run can route requests to different instances, losing in-memory state)
+    last_analysis = session.get("last_analysis") or body.get("last_analysis", "")
+    last_query    = session.get("last_query")    or body.get("last_query", "")
+    user_mode     = session.get("last_mode")     or body.get("user_mode", "patient")
 
     if not last_analysis:
         raise HTTPException(status_code=400, detail="No prior analysis in session — ask a question first.")

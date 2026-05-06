@@ -772,13 +772,16 @@ const CLOUD_RUN_URL = 'https://genomespeak-2j73ftnc7q-el.a.run.app';
 const API = window.location.origin.includes('run.app') ? window.location.origin : CLOUD_RUN_URL;
 
 let st = {
-  sessionId:   null,
+  sessionId:    null,
   artifactName: null,
-  mode:        'patient',
-  streaming:   false,
-  hasReport:   false,
+  mode:         'patient',
+  streaming:    false,
+  hasReport:    false,
   pipelineStart: null,
   grokAvailable: false,
+  lastAnalysis:  '',
+  lastQuery:     '',
+  lastMode:      'patient',
 };
 
 // ── Specialist metadata ────────────────────────────────────────────────
@@ -904,16 +907,20 @@ function updateSuggestions() {
   ['emptySuggestions'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.innerHTML = SUGGESTIONS[st.mode].map(q =>
-      `<button class="suggestion-chip" onclick="useSuggestion(${JSON.stringify(q)})">${q}</button>`
+    el.innerHTML = SUGGESTIONS[st.mode].map((q, i) =>
+      `<button class="suggestion-chip" data-mode="${st.mode}" data-idx="${i}" onclick="useSuggestion(this)">${q}</button>`
     ).join('');
   });
 }
-function useSuggestion(t) {
+function useSuggestion(btn) {
+  const mode = btn.dataset.mode;
+  const idx  = parseInt(btn.dataset.idx, 10);
+  const t    = SUGGESTIONS[mode]?.[idx];
+  if (!t) return;
   const el = document.getElementById('chatInput');
   el.value = t;
   autoResize(el);
-  el.focus();
+  send();
 }
 
 // ── File handling ──────────────────────────────────────────────────────
@@ -996,6 +1003,7 @@ async function send() {
     const decoder = new TextDecoder();
     let buf = '';
     let cardId = null;
+    const tokens = [];
 
     while (true) {
       const { done, value } = await reader.read();
@@ -1012,6 +1020,7 @@ async function send() {
             handleAgentEvent(ev.parts);
           } else if (ev.type === 'token') {
             if (!cardId) { removeThinkingCard(thinkId); cardId = addAgentCard(st.mode); }
+            tokens.push(ev.token);
             appendToCard(cardId, ev.token);
           } else if (ev.type === 'error') {
             if (!cardId) { removeThinkingCard(thinkId); cardId = addAgentCard(st.mode); }
@@ -1020,6 +1029,11 @@ async function send() {
         } catch {}
       }
     }
+
+    // Store full response in client state so Grok works even if server restarts
+    st.lastAnalysis = tokens.join('');
+    st.lastQuery    = q;
+    st.lastMode     = st.mode;
 
     if (!cardId) { removeThinkingCard(thinkId); cardId = addAgentCard(st.mode); }
     finalizeCard(cardId);
@@ -1063,7 +1077,12 @@ async function getGrokOpinion() {
     const resp = await fetch(`${API}/second-opinion`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: st.sessionId }),
+      body: JSON.stringify({
+        session_id:    st.sessionId,
+        last_analysis: st.lastAnalysis,
+        last_query:    st.lastQuery,
+        user_mode:     st.lastMode,
+      }),
     });
 
     if (!resp.ok) {
