@@ -197,19 +197,25 @@ async def chat(request: Request):
                 session_has_prior_report=has_prior,
                 user_mode_override=user_mode,
             ):
-                # Intercept status sentinels emitted by the orchestrator
-                if token.startswith('\x00STATUS:') and token.endswith('\x00'):
-                    msg = token[8:-1]
-                    yield f"data: {json.dumps({'type': 'status', 'message': msg})}\n\n".encode()
+                # Intercept all \x00...\x00 sentinels emitted by the orchestrator
+                if token.startswith('\x00') and token.endswith('\x00'):
+                    inner = token[1:-1]
+                    if inner.startswith('STATUS:'):
+                        yield f"data: {json.dumps({'type': 'status', 'message': inner[7:]})}\n\n".encode()
+                    elif inner.startswith('AGENT:'):
+                        parts = inner[6:].split(':')
+                        yield f"data: {json.dumps({'type': 'agent_event', 'parts': parts})}\n\n".encode()
                     continue
                 full_response.append(token)
-                token_event = {"type": "token", "token": token}
-                yield f"data: {json.dumps(token_event)}\n\n".encode()
+                yield f"data: {json.dumps({'type': 'token', 'token': token})}\n\n".encode()
                 await asyncio.sleep(0)
 
             # Mark session as having processed a report
             session["has_prior_report"] = True
             full_text = "".join(full_response)
+            session["last_analysis"] = full_text
+            session["last_query"]    = query
+            session["last_mode"]     = user_mode
             session["history"].append({
                 "role":    "user",
                 "content": query,
@@ -255,6 +261,97 @@ async def get_session(session_id: str):
     # Don't expose raw pdf_bytes in the API response
     safe = {k: v for k, v in session.items() if k != "pdf_bytes"}
     return JSONResponse(safe)
+
+
+# ---------------------------------------------------------------------------
+# Grok second-opinion endpoint (streams via xAI OpenAI-compatible API)
+# ---------------------------------------------------------------------------
+
+@app.post("/second-opinion")
+async def second_opinion(request: Request):
+    """
+    Calls Grok via xAI API using the stored last analysis as context.
+    Streams SSE tokens in the same format as /chat.
+    Requires GROK_API_KEY env var.
+    """
+    body       = await request.json()
+    session_id = body.get("session_id")
+    grok_key   = os.getenv("GROK_API_KEY", "")
+
+    if not grok_key:
+        raise HTTPException(status_code=503, detail="GROK_API_KEY not configured on this server.")
+
+    session       = SESSION_STORE.get(session_id, {})
+    last_analysis = session.get("last_analysis", "")
+    last_query    = session.get("last_query", "")
+    user_mode     = session.get("last_mode", "patient")
+
+    if not last_analysis:
+        raise HTTPException(status_code=400, detail="No prior analysis in session — ask a question first.")
+
+    audience = (
+        "a patient (use plain English, warm tone, Grade 8 reading level)"
+        if user_mode == "patient"
+        else "a physician (use clinical terminology, ACMG/CPIC/NCCN standards)"
+    )
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                f"You are Grok, providing an independent second medical opinion for {audience}. "
+                "Review the primary AI analysis provided and give your perspective. "
+                "Highlight agreement, flag any important considerations that may have been missed, "
+                "and add any relevant clinical context. Be concise — 200 words max."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Original question: {last_query}\n\n"
+                f"Primary analysis from GenomeSpeak:\n{last_analysis}\n\n"
+                "Please provide your independent second opinion."
+            ),
+        },
+    ]
+
+    async def grok_stream() -> AsyncIterator[bytes]:
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                async with client.stream(
+                    "POST",
+                    "https://api.x.ai/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {grok_key}",
+                        "Content-Type":  "application/json",
+                    },
+                    json={
+                        "model":  "grok-3-mini",
+                        "messages": messages,
+                        "stream": True,
+                    },
+                ) as resp:
+                    async for line in resp.aiter_lines():
+                        if not line.startswith("data: ") or line == "data: [DONE]":
+                            continue
+                        try:
+                            data  = json.loads(line[6:])
+                            delta = data["choices"][0]["delta"].get("content", "")
+                            if delta:
+                                yield f"data: {json.dumps({'type': 'token', 'token': delta})}\n\n".encode()
+                                await asyncio.sleep(0)
+                        except Exception:
+                            pass
+            yield f"data: {json.dumps({'type': 'done'})}\n\n".encode()
+        except Exception as exc:
+            logger.exception("Grok stream error: %s", exc)
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Grok unavailable — please try again.'})}\n\n".encode()
+
+    return StreamingResponse(
+        grok_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ---------------------------------------------------------------------------

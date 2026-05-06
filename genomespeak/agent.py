@@ -281,12 +281,16 @@ class GenomeSpeakOrchestrator:
             result.tier_overridden,
         )
 
-        model_short = (
-            "Gemini 3.1 Pro" if "3.1-pro" in result.model_config.model_id
-            else "Gemini 3 Flash" if "3-flash" in result.model_config.model_id
-            else "Gemini 3.1 Flash-Lite"
+        # Emit structured agent lifecycle events for the pipeline visualisation
+        yield (
+            f'\x00AGENT:classifier:done:'
+            f'{profile.report_type.value}:{profile.complexity_tier.value}:{profile.user_mode.value}\x00'
         )
-        yield f'\x00STATUS:Analysing with {model_short} ({result.model_config.thinking_level.value} thinking)…\x00'
+        yield (
+            f'\x00AGENT:selected:'
+            f'{result.specialist_agent_name}:{result.model_config.model_id}:'
+            f'{result.model_config.thinking_level.value}\x00'
+        )
 
         # --- Step 3: Build agents ---
         specialist_agent  = self._factory.build_specialist_agent(result)
@@ -340,16 +344,27 @@ class GenomeSpeakOrchestrator:
         user_content = Content(role="user", parts=parts)
 
         plain_lang_name = f"PlainLanguage_{profile.user_mode.value}"
+        specialist_started = False
+        rewriter_started   = False
 
         async for event in runner.run_async(
             user_id="user",
             session_id=session.id,
             new_message=user_content,
         ):
-            # Only stream the PlainLanguageAgent's output to the user.
-            # The specialist agent's output is intermediate — it feeds the
-            # PlainLanguageAgent but should not be shown in the chat bubble.
             author = getattr(event, "author", None)
+
+            # Emit pipeline transition events so the frontend can animate nodes
+            if author and author.startswith("Specialist_") and not specialist_started:
+                specialist_started = True
+                yield f'\x00AGENT:specialist:running:{result.specialist_agent_name}\x00'
+
+            if author == plain_lang_name and not rewriter_started:
+                rewriter_started = True
+                yield f'\x00AGENT:specialist:done\x00'
+                yield f'\x00AGENT:rewriter:running:{profile.user_mode.value}\x00'
+
+            # Only stream the PlainLanguageAgent's output to the user
             if author != plain_lang_name:
                 continue
             if event.content and event.content.parts:

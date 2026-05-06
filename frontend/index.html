@@ -3,325 +3,327 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GenomeSpeak — Understand Your Lab Reports</title>
+<title>GenomeSpeak — Multi-Agent Medical AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
-
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #F7F5F2;
-  --surface: #FFFFFF;
-  --surface-2: #F0EDE8;
-  --border: #E2DDD8;
-  --text-primary: #1A1714;
-  --text-secondary: #6B6560;
-  --text-tertiary: #9B948E;
-  --accent: #1A5C4A;
-  --accent-light: #EAF3F0;
-  --accent-2: #C4813A;
-  --accent-2-light: #FDF4E8;
-  --patient-bg: #EAF3F0;
-  --patient-border: #B8DDD4;
-  --doctor-bg: #EDF1FA;
-  --doctor-border: #B8C8F0;
-  --danger: #C0392B;
-  --radius: 14px;
-  --radius-sm: 8px;
-  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.08);
+  --bg:          #F0F2F5;
+  --surface:     #FFFFFF;
+  --surface-2:   #F8F9FB;
+  --border:      #E5E7EB;
+  --border-2:    #D1D5DB;
+  --text-1:      #111827;
+  --text-2:      #4B5563;
+  --text-3:      #9CA3AF;
+  --radius:      12px;
+  --radius-sm:   8px;
+  --shadow:      0 1px 3px rgba(0,0,0,.07), 0 4px 12px rgba(0,0,0,.05);
+  --shadow-lg:   0 8px 32px rgba(0,0,0,.10);
+
+  /* Agent palette */
+  --c-classifier: #6366F1;
+  --c-selector:   #8B5CF6;
+  --c-genomics:   #3B82F6;
+  --c-oncology:   #EF4444;
+  --c-lab:        #10B981;
+  --c-pgx:        #F59E0B;
+  --c-prenatal:   #EC4899;
+  --c-unknown:    #6B7280;
+  --c-patient:    #059669;
+  --c-doctor:     #2563EB;
+  --c-grok:       #111111;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   background: var(--bg);
-  color: var(--text-primary);
+  color: var(--text-1);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-/* ─── Header ─── */
+/* ── Header ─────────────────────────────────────────────────── */
 header {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  padding: 0 24px;
-  height: 60px;
+  height: 58px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  padding: 0 20px;
+  gap: 16px;
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: 0 1px 0 var(--border);
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   text-decoration: none;
+  flex-shrink: 0;
 }
-
 .logo-icon {
-  width: 32px;
-  height: 32px;
-  background: var(--accent);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 16px;
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
 }
+.logo-text  { font-weight: 700; font-size: 16px; color: var(--text-1); }
+.logo-sub   { font-size: 10px; color: var(--text-3); letter-spacing: .04em; text-transform: uppercase; }
 
-.logo-text {
-  font-family: 'DM Serif Display', serif;
-  font-size: 18px;
-  color: var(--text-primary);
-}
+.header-divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
 
-.logo-tagline {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  display: block;
-  line-height: 1;
-  margin-top: 1px;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-/* Mode toggle */
 .mode-toggle {
   display: flex;
   background: var(--surface-2);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: 24px;
   padding: 3px;
   gap: 2px;
 }
-
 .mode-btn {
-  padding: 5px 14px;
+  padding: 5px 16px;
   border-radius: 20px;
   border: none;
   background: transparent;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-2);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all .18s;
+  display: flex; align-items: center; gap: 5px;
 }
+.mode-btn.active { background: var(--surface); box-shadow: var(--shadow); }
+.mode-btn.patient.active { color: var(--c-patient); }
+.mode-btn.doctor.active  { color: var(--c-doctor); }
 
-.mode-btn.active {
-  background: var(--surface);
-  color: var(--text-primary);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
-.mode-btn.active.patient { color: var(--accent); }
-.mode-btn.active.doctor  { color: #3B5FC0; }
-
-/* Model indicator */
-.model-badge {
-  font-size: 10px;
+.runtime-badge {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
   padding: 4px 10px;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  color: var(--text-tertiary);
-  font-family: 'DM Sans', sans-serif;
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  border-radius: 20px;
+  color: var(--text-3);
+  display: flex; align-items: center; gap: 5px;
 }
-
-.model-dot {
-  width: 6px;
-  height: 6px;
+.runtime-dot {
+  width: 6px; height: 6px;
   border-radius: 50%;
-  background: var(--text-tertiary);
-  transition: background 0.3s;
+  background: var(--text-3);
+  transition: background .3s;
 }
+.runtime-dot.live { background: #22C55E; box-shadow: 0 0 0 2px rgba(34,197,94,.2); }
 
-.model-dot.active { background: #22C55E; }
-
-/* ─── Layout ─── */
-.layout {
+/* ── Layout ─────────────────────────────────────────────────── */
+.app {
   display: flex;
   flex: 1;
-  max-width: 1100px;
+  max-width: 1280px;
   width: 100%;
   margin: 0 auto;
-  padding: 24px 16px;
-  gap: 20px;
+  padding: 20px 16px 0;
+  gap: 16px;
+  min-height: 0;
 }
 
-/* ─── Sidebar ─── */
+/* ── Sidebar ─────────────────────────────────────────────────── */
 .sidebar {
-  width: 280px;
+  width: 300px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  align-self: flex-start;
+  position: sticky;
+  top: 78px;
 }
 
-.upload-zone {
+/* Upload */
+.upload-card {
   background: var(--surface);
-  border: 1.5px dashed var(--border);
+  border: 1.5px dashed var(--border-2);
   border-radius: var(--radius);
-  padding: 28px 20px;
+  padding: 20px 16px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all .2s;
   position: relative;
 }
-
-.upload-zone:hover, .upload-zone.dragover {
-  border-color: var(--accent);
-  background: var(--accent-light);
-}
-
-.upload-zone.has-file {
-  border-style: solid;
-  border-color: var(--accent);
-  background: var(--accent-light);
-}
-
-.upload-icon {
-  font-size: 28px;
-  margin-bottom: 10px;
-  display: block;
-}
-
-.upload-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 15px;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-}
-
-.upload-sub {
-  font-size: 11px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.upload-input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-  width: 100%;
-}
+.upload-card:hover, .upload-card.drag { border-color: var(--c-classifier); background: rgba(99,102,241,.04); }
+.upload-card.has-file { border-style: solid; border-color: var(--c-patient); background: rgba(5,150,105,.04); }
+.upload-card input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.upload-icon { font-size: 24px; margin-bottom: 8px; display: block; }
+.upload-title { font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+.upload-sub { font-size: 11px; color: var(--text-3); line-height: 1.5; }
 
 .file-pill {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 8px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 10px 12px;
+  padding: 9px 12px;
   font-size: 12px;
 }
+.file-pill.show { display: flex; }
+.file-name { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-size { color: var(--text-3); font-size: 11px; flex-shrink: 0; }
+.file-clear { background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 14px; padding: 0; line-height: 1; flex-shrink: 0; }
+.file-clear:hover { color: #EF4444; }
 
-.file-pill-icon { font-size: 16px; }
-.file-pill-name {
-  flex: 1;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-primary);
-}
-.file-pill-size { color: var(--text-tertiary); font-size: 11px; }
-.file-pill-clear {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-tertiary);
-  font-size: 14px;
-  padding: 0;
-  line-height: 1;
-}
-.file-pill-clear:hover { color: var(--danger); }
-
-/* Suggested questions */
-.sidebar-card {
+/* Pipeline panel */
+.pipeline-panel {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
+  overflow: hidden;
+}
+.pipeline-header {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.pipeline-title { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.pipeline-timer { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--text-3); }
+
+.pipeline-nodes { padding: 12px 0 8px; }
+
+/* Individual pipeline node */
+.p-node {
+  display: flex;
+  align-items: flex-start;
+  padding: 6px 14px;
+  gap: 10px;
+  position: relative;
+}
+.p-node:not(:last-child) .p-track::after {
+  content: '';
+  position: absolute;
+  left: 22px;
+  top: 28px;
+  width: 1.5px;
+  height: calc(100% - 2px);
+  background: var(--border);
 }
 
-.sidebar-card-title {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-  margin-bottom: 10px;
+.p-track {
+  width: 16px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 3px;
+  position: relative;
 }
 
-.suggestion-btn {
-  display: block;
-  width: 100%;
-  text-align: left;
+.p-dot {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
   background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 9px 12px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 12px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  margin-bottom: 6px;
-  line-height: 1.4;
-  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px;
+  transition: all .3s;
+  flex-shrink: 0;
+  z-index: 1;
 }
 
-.suggestion-btn:last-child { margin-bottom: 0; }
-.suggestion-btn:hover {
-  background: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
+.p-body { flex: 1; min-width: 0; }
+.p-name { font-size: 12px; font-weight: 600; color: var(--text-2); transition: color .3s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-model { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--text-3); margin-top: 1px; }
+.p-detail { font-size: 10px; color: var(--text-3); margin-top: 2px; min-height: 14px; transition: color .3s; }
+
+/* Node states */
+.p-node[data-state="running"] .p-dot {
+  border-color: var(--node-color, var(--c-classifier));
+  background: var(--node-color, var(--c-classifier));
+  animation: pulse-ring .9s ease infinite;
+}
+.p-node[data-state="running"] .p-name { color: var(--node-color, var(--c-classifier)); }
+.p-node[data-state="running"] .p-detail { color: var(--node-color, var(--c-classifier)); opacity: .8; }
+
+.p-node[data-state="done"] .p-dot {
+  border-color: var(--node-color, var(--c-classifier));
+  background: var(--node-color, var(--c-classifier));
+  color: white;
+}
+.p-node[data-state="done"] .p-name { color: var(--text-1); }
+.p-node[data-state="done"] .p-track::after { background: var(--node-color, var(--c-classifier)) !important; opacity: .35; }
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--node-color, #6366F1) 40%, transparent); }
+  70%  { box-shadow: 0 0 0 5px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 
-/* Selection info */
-.selection-info {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  font-size: 11px;
-  color: var(--text-secondary);
+/* Dots animation for running text */
+.dots::after { content: ''; animation: dot-cycle 1.2s steps(4) infinite; }
+@keyframes dot-cycle { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} }
+
+/* Grok second opinion button */
+.grok-btn {
   display: none;
-  gap: 6px;
-  flex-direction: column;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all .2s;
+  align-items: center;
+  gap: 8px;
+}
+.grok-btn.show { display: flex; }
+.grok-btn:hover { border-color: var(--c-grok); color: var(--text-1); background: var(--surface-2); }
+.grok-btn:disabled { opacity: .5; cursor: not-allowed; }
+.grok-logo {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--c-grok);
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.grok-btn-text { flex: 1; text-align: left; }
+.grok-badge {
+  font-size: 9px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px 6px;
+  color: var(--text-3);
 }
 
-.selection-info.visible { display: flex; }
-.sel-row { display: flex; justify-content: space-between; }
-.sel-label { color: var(--text-tertiary); }
-.sel-val { font-weight: 500; color: var(--text-primary); font-family: monospace; font-size: 10px; }
-
-/* ─── Chat ─── */
+/* ── Chat area ───────────────────────────────────────────────── */
 .chat-area {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
-  min-height: 600px;
+  max-height: calc(100vh - 98px);
 }
 
 .chat-messages {
@@ -330,9 +332,12 @@ header {
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   scroll-behavior: smooth;
 }
+
+.chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
 /* Empty state */
 .empty-state {
@@ -342,731 +347,883 @@ header {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 40px 20px;
-  color: var(--text-tertiary);
+  padding: 48px 24px;
+  color: var(--text-3);
 }
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.4;
+.empty-agents {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
 }
-
-.empty-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 22px;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-  opacity: 0.7;
+.empty-agent {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  opacity: .7;
 }
+.empty-title { font-size: 20px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; opacity: .8; }
+.empty-sub { font-size: 13px; line-height: 1.6; max-width: 340px; }
 
-.empty-sub {
-  font-size: 13px;
+/* User message */
+.msg-user {
+  display: flex;
+  justify-content: flex-end;
+  animation: slide-up .2s ease;
+}
+.msg-user-bubble {
+  max-width: 72%;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  color: white;
+  border-radius: 16px 16px 4px 16px;
+  font-size: 14px;
   line-height: 1.6;
-  max-width: 320px;
+  box-shadow: 0 2px 8px rgba(99,102,241,.3);
 }
 
-/* Messages */
-.message {
+/* Agent response card */
+.msg-agent {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  animation: fadeUp 0.25s ease forwards;
+  gap: 0;
+  animation: slide-up .2s ease;
 }
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+.agent-card {
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  overflow: hidden;
+  box-shadow: var(--shadow);
 }
-
-.message.user { align-items: flex-end; }
-.message.assistant { align-items: flex-start; }
-
-.message-role {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-  padding: 0 4px;
+.agent-card-header {
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
 }
-
-.message-bubble {
-  max-width: 80%;
-  padding: 14px 18px;
-  border-radius: 16px;
+.agent-avatar {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
   font-size: 14px;
-  line-height: 1.7;
+  flex-shrink: 0;
+}
+.agent-card-name { font-size: 12px; font-weight: 700; }
+.agent-card-meta { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--text-3); }
+.agent-card-badges { margin-left: auto; display: flex; gap: 5px; }
+.badge {
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
 }
 
-.message.user .message-bubble {
-  background: var(--accent);
-  color: white;
-  border-bottom-right-radius: 4px;
-}
+/* Patient card */
+.agent-card.patient { background: #FAFFFE; border-color: rgba(5,150,105,.25); }
+.agent-card.patient .agent-card-header { background: rgba(5,150,105,.06); }
+.agent-card.patient .agent-card-name { color: var(--c-patient); }
+.agent-card.patient .agent-avatar { background: rgba(5,150,105,.1); }
+.agent-card.patient .badge.mode { background: rgba(5,150,105,.1); color: var(--c-patient); }
 
-.message.assistant .message-bubble {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  border-bottom-left-radius: 4px;
-}
+/* Doctor card */
+.agent-card.doctor { background: #FAFBFF; border-color: rgba(37,99,235,.2); }
+.agent-card.doctor .agent-card-header { background: rgba(37,99,235,.05); }
+.agent-card.doctor .agent-card-name { color: var(--c-doctor); }
+.agent-card.doctor .agent-avatar { background: rgba(37,99,235,.1); }
+.agent-card.doctor .badge.mode { background: rgba(37,99,235,.1); color: var(--c-doctor); }
 
-.message.assistant.patient .message-bubble {
-  background: var(--patient-bg);
-  border-color: var(--patient-border);
-}
+/* Grok card */
+.agent-card.grok { background: #0F0F0F; border-color: #2A2A2A; }
+.agent-card.grok .agent-card-header { background: #1A1A1A; border-color: #2A2A2A; }
+.agent-card.grok .agent-card-name { color: #E5E5E5; }
+.agent-card.grok .agent-card-meta { color: #666; }
+.agent-card.grok .badge.mode { background: #2A2A2A; color: #888; }
+.agent-card.grok .agent-card-body { color: #D1D5DB; }
 
-.message.assistant.doctor .message-bubble {
-  background: var(--doctor-bg);
-  border-color: var(--doctor-border);
-}
-
-/* Model tag inside assistant message */
-.model-tag {
-  font-size: 10px;
-  font-family: monospace;
-  color: var(--text-tertiary);
-  padding: 2px 6px;
-  background: rgba(0,0,0,0.05);
-  border-radius: 4px;
-  display: inline-block;
-  margin-bottom: 8px;
+.agent-card-body {
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--text-1);
+  min-height: 32px;
 }
 
 /* Typing cursor */
-.typing-cursor {
+.cursor {
   display: inline-block;
-  width: 2px;
-  height: 14px;
-  background: var(--accent);
-  margin-left: 2px;
+  width: 2px; height: 14px;
+  background: currentColor;
+  margin-left: 1px;
   vertical-align: middle;
-  animation: blink 0.8s step-end infinite;
+  animation: blink .7s step-end infinite;
+  opacity: .7;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Formatted text within agent cards */
+.agent-card-body strong { font-weight: 600; }
+.agent-card-body .section-head {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin: 14px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  display: block;
+}
+.agent-card.doctor .agent-card-body .section-head { color: var(--c-doctor); border-color: rgba(37,99,235,.15); }
+.agent-card-body code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: rgba(0,0,0,.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.agent-card.grok .agent-card-body code { background: rgba(255,255,255,.08); }
+.badge-acmg {
+  display: inline-block;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  vertical-align: middle;
+  margin: 0 2px;
+}
+.badge-pathogenic   { background: rgba(239,68,68,.12);  color: #DC2626; }
+.badge-benign       { background: rgba(16,185,129,.12); color: #059669; }
+.badge-vus          { background: rgba(245,158,11,.12); color: #D97706; }
+.badge-tier1        { background: rgba(37,99,235,.12);  color: #2563EB; }
+.badge-tier2        { background: rgba(99,102,241,.12); color: #4F46E5; }
+
+/* Thinking indicator */
+.thinking-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-2);
+  animation: slide-up .2s ease;
+}
+.thinking-spinner {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--c-classifier);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0; }
+/* Suggestions */
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0 4px;
 }
+.suggestion-chip {
+  font-size: 11px;
+  padding: 5px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  color: var(--text-2);
+  font-family: 'Inter', sans-serif;
+  transition: all .15s;
+}
+.suggestion-chip:hover { border-color: var(--c-classifier); color: var(--c-classifier); background: rgba(99,102,241,.04); }
 
 /* Chat input */
 .chat-input-area {
   border-top: 1px solid var(--border);
-  padding: 16px 20px;
+  padding: 12px 16px 14px;
   background: var(--surface);
 }
-
-.input-row {
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-}
-
+.input-row { display: flex; gap: 8px; align-items: flex-end; }
 .input-wrap {
   flex: 1;
+  display: flex;
+  align-items: flex-end;
   background: var(--surface-2);
   border: 1.5px solid var(--border);
   border-radius: 12px;
-  display: flex;
-  align-items: flex-end;
   padding: 10px 14px;
-  transition: border-color 0.15s;
   gap: 8px;
+  transition: border-color .15s;
 }
-
-.input-wrap:focus-within {
-  border-color: var(--accent);
-  background: var(--surface);
-}
-
-.chat-textarea {
+.input-wrap:focus-within { border-color: var(--c-classifier); background: var(--surface); }
+textarea.chat-input {
   flex: 1;
   background: transparent;
   border: none;
   outline: none;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 14px;
-  color: var(--text-primary);
+  color: var(--text-1);
   resize: none;
   min-height: 22px;
   max-height: 120px;
   line-height: 1.5;
 }
-
-.chat-textarea::placeholder { color: var(--text-tertiary); }
-
+textarea.chat-input::placeholder { color: var(--text-3); }
 .send-btn {
-  width: 40px;
-  height: 40px;
+  width: 38px; height: 38px;
   border-radius: 10px;
   border: none;
-  background: var(--accent);
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
   color: white;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   font-size: 16px;
   flex-shrink: 0;
-  transition: all 0.15s;
+  transition: all .15s;
+  box-shadow: 0 2px 6px rgba(99,102,241,.3);
 }
-
-.send-btn:hover { background: #134737; transform: scale(1.05); }
-.send-btn:disabled { background: var(--border); cursor: not-allowed; transform: none; }
-
+.send-btn:hover { opacity: .9; transform: scale(1.05); }
+.send-btn:disabled { background: var(--border); box-shadow: none; cursor: not-allowed; transform: none; }
 .input-hint {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  margin-top: 8px;
+  font-size: 10px;
+  color: var(--text-3);
+  margin-top: 6px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
-.input-hint-dot {
-  width: 4px;
-  height: 4px;
-  background: var(--text-tertiary);
-  border-radius: 50%;
-}
-
-/* ─── Disclaimer banner ─── */
-.disclaimer {
-  background: var(--accent-2-light);
-  border-top: 1px solid #E8C89A;
-  padding: 10px 24px;
+/* Disclaimer */
+footer {
+  background: #FFF8F0;
+  border-top: 1px solid #FDE8C8;
+  padding: 8px 24px;
   font-size: 11px;
-  color: var(--accent-2);
+  color: #92400E;
   text-align: center;
   line-height: 1.5;
+  margin-top: 16px;
 }
-
-/* ─── Loading state ─── */
-.thinking-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  width: fit-content;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.thinking-dots {
-  display: flex;
-  gap: 4px;
-}
-
-.thinking-dot {
-  width: 5px;
-  height: 5px;
-  background: var(--accent);
-  border-radius: 50%;
-  animation: bounce 1.2s infinite;
-}
-
-.thinking-dot:nth-child(2) { animation-delay: 0.2s; }
-.thinking-dot:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes bounce {
-  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-  40%            { transform: translateY(-5px); opacity: 1; }
-}
-
-/* Scrollbar */
-.chat-messages::-webkit-scrollbar { width: 4px; }
-.chat-messages::-webkit-scrollbar-track { background: transparent; }
-.chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 </style>
 </head>
 <body>
 
-<!-- Header -->
 <header>
   <a class="logo" href="#">
     <div class="logo-icon">🧬</div>
     <div>
-      <span class="logo-text">GenomeSpeak</span>
-      <span class="logo-tagline">Powered by Google Gemini 3.1 Pro · ADK</span>
+      <div class="logo-text">GenomeSpeak</div>
+      <div class="logo-sub">Multi-Agent Medical AI</div>
     </div>
   </a>
 
+  <div class="header-divider"></div>
+
+  <div class="mode-toggle" id="modeToggle">
+    <button class="mode-btn patient active" data-mode="patient" onclick="setMode('patient')">🌱 Patient</button>
+    <button class="mode-btn doctor"          data-mode="doctor"  onclick="setMode('doctor')">🏥 Doctor</button>
+  </div>
+
   <div class="header-right">
-    <div class="mode-toggle" id="modeToggle">
-      <button class="mode-btn active patient" data-mode="patient" onclick="setMode('patient')">🙋 Patient</button>
-      <button class="mode-btn doctor" data-mode="doctor" onclick="setMode('doctor')">👩‍⚕️ Doctor</button>
-    </div>
-    <div class="model-badge" id="modelBadge">
-      <div class="model-dot" id="modelDot"></div>
-      <span id="modelName">Ready</span>
+    <div class="runtime-badge">
+      <div class="runtime-dot" id="runtimeDot"></div>
+      <span id="runtimeLabel">Ready</span>
     </div>
   </div>
 </header>
 
-<!-- Main layout -->
-<div class="layout">
+<div class="app">
 
-  <!-- Sidebar -->
+  <!-- ── Sidebar ── -->
   <aside class="sidebar">
 
-    <!-- Upload zone -->
-    <div class="upload-zone" id="uploadZone"
-         ondragover="handleDragOver(event)"
-         ondragleave="handleDragLeave(event)"
-         ondrop="handleDrop(event)">
-      <input type="file" accept=".pdf" class="upload-input" id="fileInput" onchange="handleFile(event)">
+    <!-- Upload -->
+    <div class="upload-card" id="uploadCard"
+         ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+      <input type="file" accept=".pdf" id="fileInput" onchange="onFileSelect(event)">
       <span class="upload-icon">📄</span>
       <div class="upload-title">Upload your report</div>
-      <div class="upload-sub">Drag & drop or click to select<br>Lab results, genomics reports, any PDF</div>
+      <div class="upload-sub">Drag & drop a PDF<br>Lab results · Genomics · PGx</div>
     </div>
 
-    <!-- File pill (shown after upload) -->
-    <div class="file-pill" id="filePill" style="display:none">
-      <span class="file-pill-icon">📋</span>
-      <span class="file-pill-name" id="fileName">report.pdf</span>
-      <span class="file-pill-size" id="fileSize"></span>
-      <button class="file-pill-clear" onclick="clearFile()" title="Remove file">✕</button>
+    <div class="file-pill" id="filePill">
+      <span style="font-size:15px">📋</span>
+      <span class="file-name" id="fileName"></span>
+      <span class="file-size" id="fileSize"></span>
+      <button class="file-clear" onclick="clearFile()" title="Remove">✕</button>
     </div>
 
-    <!-- Adaptive model selection info -->
-    <div class="selection-info" id="selectionInfo">
-      <div class="sidebar-card-title" style="margin-bottom:4px">Model Selection</div>
-      <div class="sel-row"><span class="sel-label">Model</span><span class="sel-val" id="selModel">—</span></div>
-      <div class="sel-row"><span class="sel-label">Thinking</span><span class="sel-val" id="selThinking">—</span></div>
-      <div class="sel-row"><span class="sel-label">Tier</span><span class="sel-val" id="selTier">—</span></div>
-      <div class="sel-row"><span class="sel-label">Override</span><span class="sel-val" id="selOverride">—</span></div>
+    <!-- Agent pipeline -->
+    <div class="pipeline-panel">
+      <div class="pipeline-header">
+        <span class="pipeline-title">Agent Pipeline</span>
+        <span class="pipeline-timer" id="pipelineTimer"></span>
+      </div>
+      <div class="pipeline-nodes">
+
+        <div class="p-node" id="node-classifier" data-state="idle"
+             style="--node-color: var(--c-classifier)">
+          <div class="p-track"><div class="p-dot">🔍</div></div>
+          <div class="p-body">
+            <div class="p-name">Query Classifier</div>
+            <div class="p-model">Flash-Lite · LOW</div>
+            <div class="p-detail" id="nd-classifier">Identifies report type &amp; complexity</div>
+          </div>
+        </div>
+
+        <div class="p-node" id="node-selector" data-state="idle"
+             style="--node-color: var(--c-selector)">
+          <div class="p-track"><div class="p-dot">⚖️</div></div>
+          <div class="p-body">
+            <div class="p-name">Model Selector</div>
+            <div class="p-model">Pure Python · 0ms</div>
+            <div class="p-detail" id="nd-selector">Tier matrix + safety overrides</div>
+          </div>
+        </div>
+
+        <div class="p-node" id="node-specialist" data-state="idle"
+             style="--node-color: var(--c-unknown)">
+          <div class="p-track"><div class="p-dot" id="specialist-dot">🤖</div></div>
+          <div class="p-body">
+            <div class="p-name" id="specialist-name">Specialist Agent</div>
+            <div class="p-model" id="specialist-model">—</div>
+            <div class="p-detail" id="nd-specialist">Awaiting classification</div>
+          </div>
+        </div>
+
+        <div class="p-node" id="node-rewriter" data-state="idle"
+             style="--node-color: var(--c-patient)">
+          <div class="p-track"><div class="p-dot" id="rewriter-dot">📝</div></div>
+          <div class="p-body">
+            <div class="p-name" id="rewriter-name">Report Writer</div>
+            <div class="p-model" id="rewriter-model">Flash-Lite · LOW</div>
+            <div class="p-detail" id="nd-rewriter">Plain language rewrite</div>
+          </div>
+        </div>
+
+      </div>
     </div>
 
-    <!-- Suggested questions -->
-    <div class="sidebar-card" id="suggestionsCard">
-      <div class="sidebar-card-title">Suggested questions</div>
-      <div id="suggestionsList"></div>
-    </div>
+    <!-- Grok second opinion -->
+    <button class="grok-btn" id="grokBtn" onclick="getGrokOpinion()">
+      <div class="grok-logo">𝕏</div>
+      <div class="grok-btn-text">
+        Get Second Opinion
+        <div style="font-size:10px;font-weight:400;color:var(--text-3);margin-top:1px">Powered by Grok</div>
+      </div>
+      <span class="grok-badge">grok-3-mini</span>
+    </button>
 
   </aside>
 
-  <!-- Chat -->
+  <!-- ── Chat ── -->
   <main class="chat-area">
     <div class="chat-messages" id="chatMessages">
       <div class="empty-state" id="emptyState">
-        <div class="empty-icon">🔬</div>
-        <div class="empty-title">Your reports, explained clearly</div>
-        <div class="empty-sub">Upload a lab result or genomics report, then ask anything. I'll explain it in plain language — no jargon, no guesswork.</div>
+        <div class="empty-agents">
+          <div class="empty-agent" style="background:rgba(99,102,241,.1)">🔍</div>
+          <div class="empty-agent" style="background:rgba(139,92,246,.1)">⚖️</div>
+          <div class="empty-agent" style="background:rgba(59,130,246,.1)">🧬</div>
+          <div class="empty-agent" style="background:rgba(5,150,105,.1)">📝</div>
+        </div>
+        <div class="empty-title">Four agents, one answer</div>
+        <div class="empty-sub">Upload a lab or genomics report PDF, then ask a question. A pipeline of specialised AI agents will classify, reason, and respond — tailored to your audience.</div>
+        <div class="suggestions" id="emptySuggestions" style="justify-content:center;margin-top:16px"></div>
       </div>
     </div>
 
     <div class="chat-input-area">
       <div class="input-row">
         <div class="input-wrap">
-          <textarea
-            class="chat-textarea"
-            id="chatInput"
-            placeholder="Ask about your report… e.g. 'What does this mean for me?'"
-            rows="1"
-            onkeydown="handleKey(event)"
-            oninput="autoResize(this)"
-          ></textarea>
+          <textarea class="chat-input" id="chatInput" rows="1"
+            placeholder="Ask about your report…"
+            onkeydown="onKey(event)" oninput="autoResize(this)"></textarea>
         </div>
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Send">
-          ↑
-        </button>
+        <button class="send-btn" id="sendBtn" onclick="send()" title="Send (Enter)">↑</button>
       </div>
-      <div class="input-hint">
-        <div class="input-hint-dot"></div>
-        <span id="inputHint">Upload a report to get started, or type a general question</span>
+      <div class="input-hint" id="inputHint">
+        <span>Upload a report to get started, or ask a general question</span>
       </div>
     </div>
   </main>
 
 </div>
 
-<!-- Disclaimer -->
-<div class="disclaimer">
-  ⚠️ GenomeSpeak is for informational purposes only. It does not provide medical advice, diagnosis, or treatment recommendations. Always consult your doctor or genetic counsellor before making health decisions.
-</div>
+<footer>
+  ⚠️ For informational purposes only. Not medical advice. Always consult a qualified healthcare professional before making clinical decisions.
+</footer>
 
 <script>
-// ─── State ────────────────────────────────────────────────────────────────────
-
+// ── State ──────────────────────────────────────────────────────────────
 const CLOUD_RUN_URL = 'https://genomespeak-2j73ftnc7q-el.a.run.app';
-const API_BASE = window.location.origin.includes('run.app')
-  ? window.location.origin   // served from Cloud Run → same origin
-  : CLOUD_RUN_URL;            // local file or preview panel → Cloud Run
+const API = window.location.origin.includes('run.app') ? window.location.origin : CLOUD_RUN_URL;
 
-let state = {
-  sessionId:    null,
+let st = {
+  sessionId:   null,
   artifactName: null,
-  mode:         'patient',
-  isStreaming:  false,
-  hasReport:    false,
+  mode:        'patient',
+  streaming:   false,
+  hasReport:   false,
+  pipelineStart: null,
+  grokAvailable: false,
 };
 
-// ─── Mode ─────────────────────────────────────────────────────────────────────
+// ── Specialist metadata ────────────────────────────────────────────────
+const SPECIALISTS = {
+  genomics:        { icon: '🧬', color: 'var(--c-genomics)',  name: 'Genomics Agent',    desc: 'ACMG/AMP · ClinVar · gnomAD' },
+  oncology:        { icon: '🎯', color: 'var(--c-oncology)',  name: 'Oncology Agent',    desc: 'OncoKB · TMB · MSI · NCCN' },
+  routine_lab:     { icon: '🔬', color: 'var(--c-lab)',       name: 'Lab Medicine Agent',desc: 'CBC · CMP · Lipids · LFT' },
+  pharmacogenomics:{ icon: '💊', color: 'var(--c-pgx)',       name: 'PGx Agent',         desc: 'CPIC · CYP2D6 · DPYD · TPMT' },
+  prenatal:        { icon: '🤰', color: 'var(--c-prenatal)',  name: 'Prenatal Agent',    desc: 'NIPT · Karyotype · CMA' },
+  chromosomal:     { icon: '🔭', color: '#06B6D4',            name: 'Chromosomal Agent', desc: 'Array CGH · FISH · SVs' },
+};
 
-function setMode(mode) {
-  state.mode = mode;
-  document.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.mode === mode);
-  });
+const MODEL_LABELS = {
+  'gemini-3.1-pro-preview':        '3.1 Pro',
+  'gemini-3-flash-preview':         '3 Flash',
+  'gemini-3.1-flash-lite-preview':  '3.1 Flash-Lite',
+};
+
+// ── Mode ───────────────────────────────────────────────────────────────
+function setMode(m) {
+  st.mode = m;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+  updateRewriterMeta(m);
   updateSuggestions();
 }
 
-// ─── Suggestions ──────────────────────────────────────────────────────────────
-
-const PATIENT_SUGGESTIONS = [
-  'What does this result mean for me?',
-  'Which values are outside the normal range?',
-  'Should I be worried about anything?',
-  'What should I discuss with my doctor?',
-  'Can you explain this in simple terms?',
-];
-
-const DOCTOR_SUGGESTIONS = [
-  'Summarise all abnormal findings with clinical significance',
-  'Apply ACMG/AMP criteria to the reported variants',
-  'What therapeutic options match this mutation profile?',
-  'Flag critical values requiring urgent action',
-  'Generate a differential for these lab findings',
-];
-
-function updateSuggestions() {
-  const list = document.getElementById('suggestionsList');
-  const items = state.mode === 'patient' ? PATIENT_SUGGESTIONS : DOCTOR_SUGGESTIONS;
-  list.innerHTML = items.map(q =>
-    `<button class="suggestion-btn" onclick="useSuggestion('${q.replace(/'/g,"\\'")}')">
-      ${q}
-    </button>`
-  ).join('');
+// ── Pipeline helpers ───────────────────────────────────────────────────
+function setNodeState(id, state) {
+  const n = document.getElementById('node-' + id);
+  if (n) n.dataset.state = state;
 }
 
-function useSuggestion(text) {
-  const input = document.getElementById('chatInput');
-  input.value = text;
-  autoResize(input);
-  input.focus();
+function setNodeDetail(id, text) {
+  const el = document.getElementById('nd-' + id);
+  if (el) el.textContent = text;
 }
 
-// ─── File handling ────────────────────────────────────────────────────────────
-
-function handleDragOver(e) {
-  e.preventDefault();
-  document.getElementById('uploadZone').classList.add('dragover');
+function resetPipeline() {
+  ['classifier','selector','specialist','rewriter'].forEach(id => {
+    setNodeState(id, 'idle');
+    setNodeDetail(id, {
+      classifier: 'Identifies report type & complexity',
+      selector:   'Tier matrix + safety overrides',
+      specialist: 'Awaiting classification',
+      rewriter:   'Plain language rewrite',
+    }[id]);
+  });
+  document.getElementById('nd-classifier').innerHTML = 'Identifies report type &amp; complexity';
+  document.getElementById('specialist-dot').textContent = '🤖';
+  document.getElementById('specialist-name').textContent = 'Specialist Agent';
+  document.getElementById('specialist-model').textContent = '—';
+  document.getElementById('node-specialist').style.setProperty('--node-color','var(--c-unknown)');
+  updateRewriterMeta(st.mode);
+  document.getElementById('pipelineTimer').textContent = '';
+  st.pipelineStart = Date.now();
 }
 
-function handleDragLeave(e) {
-  document.getElementById('uploadZone').classList.remove('dragover');
+function updateRewriterMeta(mode) {
+  const name  = mode === 'patient' ? '🌱 Patient Writer' : '🏥 Doctor Writer';
+  const color = mode === 'patient' ? 'var(--c-patient)' : 'var(--c-doctor)';
+  document.getElementById('rewriter-name').textContent = name;
+  document.getElementById('rewriter-dot').textContent  = mode === 'patient' ? '🌱' : '🏥';
+  document.getElementById('node-rewriter').style.setProperty('--node-color', color);
 }
 
-function handleDrop(e) {
-  e.preventDefault();
-  handleDragLeave(e);
-  const file = e.dataTransfer.files[0];
-  if (file) processFile(file);
-}
+function handleAgentEvent(parts) {
+  const [component, status, ...args] = parts;
 
-function handleFile(e) {
-  const file = e.target.files[0];
-  if (file) processFile(file);
-}
-
-async function processFile(file) {
-  if (!file.name.toLowerCase().endsWith('.pdf')) {
-    alert('Please upload a PDF file.');
-    return;
+  if (component === 'classifier' && status === 'done') {
+    const [reportType, tier, userMode] = args;
+    setNodeState('classifier', 'done');
+    setNodeDetail('classifier', `${reportType.replace('_',' ')} · ${tier.replace('tier_','Tier ')}`);
+    setNodeState('selector', 'running');
+    setNodeDetail('selector', 'Selecting optimal model…');
   }
 
-  // Show file pill
+  if (component === 'selected') {
+    const [specialistType, modelId, thinking] = args;
+    const modelLabel = MODEL_LABELS[modelId] || modelId;
+    setNodeState('selector', 'done');
+    setNodeDetail('selector', `${modelLabel} · ${thinking}`);
+
+    const spec = SPECIALISTS[specialistType] || { icon: '🤖', color: 'var(--c-unknown)', name: 'Specialist Agent', desc: '' };
+    document.getElementById('specialist-dot').textContent  = spec.icon;
+    document.getElementById('specialist-name').textContent = spec.name;
+    document.getElementById('specialist-model').textContent = `${modelLabel} · ${thinking}`;
+    document.getElementById('node-specialist').style.setProperty('--node-color', spec.color);
+    setNodeDetail('specialist', spec.desc);
+  }
+
+  if (component === 'specialist' && status === 'running') {
+    setNodeState('specialist', 'running');
+    setNodeDetail('specialist', 'Analysing report…');
+  }
+  if (component === 'specialist' && status === 'done') {
+    setNodeState('specialist', 'done');
+    setNodeDetail('specialist', 'Analysis complete');
+  }
+  if (component === 'rewriter' && status === 'running') {
+    const mode = args[0] || st.mode;
+    updateRewriterMeta(mode);
+    setNodeState('rewriter', 'running');
+    setNodeDetail('rewriter', mode === 'patient' ? 'Writing plain-language summary…' : 'Writing clinical summary…');
+  }
+}
+
+// ── Suggestions ────────────────────────────────────────────────────────
+const SUGGESTIONS = {
+  patient: [
+    'What does this result mean for me?',
+    'Which values are outside normal range?',
+    'Should I be worried about anything?',
+    'What should I discuss with my doctor?',
+  ],
+  doctor: [
+    'Summarise all abnormal findings',
+    'Apply ACMG/AMP 2015 criteria',
+    'What targeted therapies match this profile?',
+    'Flag critical values requiring urgent action',
+  ],
+};
+function updateSuggestions() {
+  ['emptySuggestions'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = SUGGESTIONS[st.mode].map(q =>
+      `<button class="suggestion-chip" onclick="useSuggestion(${JSON.stringify(q)})">${q}</button>`
+    ).join('');
+  });
+}
+function useSuggestion(t) {
+  const el = document.getElementById('chatInput');
+  el.value = t;
+  autoResize(el);
+  el.focus();
+}
+
+// ── File handling ──────────────────────────────────────────────────────
+function onDragOver(e)  { e.preventDefault(); document.getElementById('uploadCard').classList.add('drag'); }
+function onDragLeave()  { document.getElementById('uploadCard').classList.remove('drag'); }
+function onDrop(e)      { e.preventDefault(); onDragLeave(); const f = e.dataTransfer.files[0]; if (f) processFile(f); }
+function onFileSelect(e){ const f = e.target.files[0]; if (f) processFile(f); }
+
+async function processFile(file) {
+  if (!file.name.toLowerCase().endsWith('.pdf')) { alert('Please upload a PDF.'); return; }
+
   document.getElementById('fileName').textContent = file.name;
-  document.getElementById('fileSize').textContent = formatBytes(file.size);
-  document.getElementById('filePill').style.display = 'flex';
-  document.getElementById('uploadZone').classList.add('has-file');
-  document.getElementById('uploadZone').style.display = 'none';
+  document.getElementById('fileSize').textContent = fmtBytes(file.size);
+  document.getElementById('filePill').classList.add('show');
+  document.getElementById('uploadCard').style.display = 'none';
+  document.getElementById('inputHint').innerHTML = '<span>Report loaded — ask your first question below</span>';
 
-  document.getElementById('inputHint').textContent = 'Report loaded — ask your first question below';
-
-  // Upload to backend
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('user_mode', state.mode);
-  if (state.sessionId) formData.append('session_id', state.sessionId);
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('user_mode', st.mode);
+  if (st.sessionId) fd.append('session_id', st.sessionId);
 
   try {
-    const resp = await fetch(`${API_BASE}/upload`, { method: 'POST', body: formData });
-    const data = await resp.json();
-    state.sessionId    = data.session_id;
-    state.artifactName = data.artifact_name;
-    state.hasReport    = true;
-
-    addSystemMessage(`📋 Report uploaded: **${file.name}** (${formatBytes(file.size)}). Ask me anything about it.`);
+    const r = await fetch(`${API}/upload`, { method: 'POST', body: fd });
+    const d = await r.json();
+    st.sessionId    = d.session_id;
+    st.artifactName = d.artifact_name;
+    st.hasReport    = true;
+    addSystem(`📋 <strong>${file.name}</strong> uploaded (${fmtBytes(file.size)}) — ready for questions.`);
   } catch (err) {
+    addSystem('⚠️ Upload failed. Please try again.');
     console.error(err);
-    addSystemMessage('⚠️ Failed to upload report. Please try again.');
   }
 }
 
 function clearFile() {
-  state.artifactName = null;
-  state.hasReport    = false;
-  document.getElementById('filePill').style.display = 'none';
-  document.getElementById('uploadZone').style.display = 'block';
-  document.getElementById('uploadZone').classList.remove('has-file');
+  st.artifactName = null; st.hasReport = false;
+  document.getElementById('filePill').classList.remove('show');
+  document.getElementById('uploadCard').style.display = '';
   document.getElementById('fileInput').value = '';
-  document.getElementById('inputHint').textContent = 'Upload a report to get started, or type a general question';
-  document.getElementById('selectionInfo').classList.remove('visible');
+  document.getElementById('inputHint').innerHTML = '<span>Upload a report to get started, or ask a general question</span>';
 }
 
-function formatBytes(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
-  return (bytes/1024/1024).toFixed(1) + ' MB';
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
 }
 
-// ─── Chat ─────────────────────────────────────────────────────────────────────
+// ── Chat ───────────────────────────────────────────────────────────────
+function onKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
 
-function handleKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-}
-
-function autoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-}
-
-async function sendMessage() {
+async function send() {
   const input = document.getElementById('chatInput');
-  const query = input.value.trim();
-  if (!query || state.isStreaming) return;
+  const q = input.value.trim();
+  if (!q || st.streaming) return;
 
-  // Clear empty state
   document.getElementById('emptyState').style.display = 'none';
+  addUserMsg(q);
+  input.value = ''; autoResize(input);
 
-  // Add user bubble
-  addMessage('user', query);
-  input.value = '';
-  autoResize(input);
-
-  // Lock UI
-  state.isStreaming = true;
+  st.streaming = true;
   document.getElementById('sendBtn').disabled = true;
+  document.getElementById('runtimeDot').classList.add('live');
+  document.getElementById('runtimeLabel').textContent = 'Running';
+  document.getElementById('grokBtn').classList.remove('show');
 
-  // Show thinking indicator
-  const thinkingId = addThinkingIndicator();
+  resetPipeline();
+  const thinkId = addThinkingCard();
 
-  // Update model dot
-  document.getElementById('modelDot').classList.add('active');
-
-  // Start streaming
   try {
-    const resp = await fetch(`${API_BASE}/chat`, {
+    const resp = await fetch(`${API}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        session_id:    state.sessionId,
-        query,
-        user_mode:     state.mode,
-      }),
+      body: JSON.stringify({ session_id: st.sessionId, query: q, user_mode: st.mode }),
     });
 
-    const reader   = resp.body.getReader();
-    const decoder  = new TextDecoder();
-    let buffer     = '';
-    let bubbleId   = null;
+    const reader  = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let cardId = null;
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n'); buf = lines.pop();
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
         try {
-          const event = JSON.parse(line.slice(6));
-          if (event.type === 'status') {
-            // Keep indicator visible, update its text
-            updateThinkingIndicator(thinkingId, event.message);
-          } else if (event.type === 'token' || event.type === 'error') {
-            // First real content — swap indicator for streaming bubble
-            if (!bubbleId) {
-              removeThinkingIndicator(thinkingId);
-              bubbleId = addStreamingBubble();
-            }
-            if (event.type === 'token') appendToken(bubbleId, event.token);
-            else appendToken(bubbleId, '⚠️ ' + (event.message || 'Unexpected error. Please try again.'));
+          const ev = JSON.parse(line.slice(6));
+          if (ev.type === 'status') {
+            updateThinkingCard(thinkId, ev.message);
+          } else if (ev.type === 'agent_event') {
+            handleAgentEvent(ev.parts);
+          } else if (ev.type === 'token') {
+            if (!cardId) { removeThinkingCard(thinkId); cardId = addAgentCard(st.mode); }
+            appendToCard(cardId, ev.token);
+          } else if (ev.type === 'error') {
+            if (!cardId) { removeThinkingCard(thinkId); cardId = addAgentCard(st.mode); }
+            appendToCard(cardId, '⚠️ ' + (ev.message || 'Something went wrong.'));
           }
-        } catch (e) { /* ignore malformed */ }
+        } catch {}
       }
     }
 
-    if (!bubbleId) {
-      removeThinkingIndicator(thinkingId);
-      bubbleId = addStreamingBubble();
+    if (!cardId) { removeThinkingCard(thinkId); cardId = addAgentCard(st.mode); }
+    finalizeCard(cardId);
+    setNodeState('rewriter', 'done');
+    setNodeDetail('rewriter', 'Complete');
+
+    if (st.pipelineStart) {
+      const elapsed = ((Date.now() - st.pipelineStart) / 1000).toFixed(1);
+      document.getElementById('pipelineTimer').textContent = elapsed + 's';
     }
-    finalizeStreamingBubble(bubbleId);
+
+    st.grokAvailable = true;
+    document.getElementById('grokBtn').classList.add('show');
 
   } catch (err) {
-    removeThinkingIndicator(thinkingId);
-    addSystemMessage('⚠️ Connection error. Please try again.');
+    removeThinkingCard(thinkId);
+    addSystem('⚠️ Connection error. Please try again.');
     console.error(err);
   }
 
-  state.isStreaming = false;
+  st.streaming = false;
   document.getElementById('sendBtn').disabled = false;
-  document.getElementById('modelDot').classList.remove('active');
+  document.getElementById('runtimeDot').classList.remove('live');
+  document.getElementById('runtimeLabel').textContent = 'Ready';
 }
 
-// ─── Message rendering ────────────────────────────────────────────────────────
+// ── Grok second opinion ────────────────────────────────────────────────
+async function getGrokOpinion() {
+  if (!st.sessionId || st.streaming) return;
+  const btn = document.getElementById('grokBtn');
+  btn.disabled = true;
+  btn.querySelector('.grok-btn-text').textContent = 'Getting Grok opinion…';
 
-let messageCounter = 0;
+  st.streaming = true;
+  document.getElementById('runtimeDot').classList.add('live');
+  document.getElementById('runtimeLabel').textContent = 'Grok';
 
-function addMessage(role, text) {
-  const id = 'msg-' + (++messageCounter);
-  const container = document.getElementById('chatMessages');
-  const modeClass = role === 'assistant' ? state.mode : '';
+  const thinkId = addThinkingCard('Getting second opinion from Grok…');
 
-  const el = document.createElement('div');
-  el.className = `message ${role} ${modeClass}`;
-  el.id = id;
-  el.innerHTML = `
-    <div class="message-role">${role === 'user' ? 'You' : 'GenomeSpeak'}</div>
-    <div class="message-bubble">${formatText(text)}</div>
-  `;
-  container.appendChild(el);
-  scrollToBottom();
-  return id;
-}
+  try {
+    const resp = await fetch(`${API}/second-opinion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: st.sessionId }),
+    });
 
-function addStreamingBubble() {
-  const id = 'msg-' + (++messageCounter);
-  const container = document.getElementById('chatMessages');
+    if (!resp.ok) {
+      const err = await resp.json();
+      removeThinkingCard(thinkId);
+      addSystem('⚠️ Grok: ' + (err.detail || 'Unavailable'));
+    } else {
+      const reader  = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '', cardId = null;
 
-  const el = document.createElement('div');
-  el.className = `message assistant ${state.mode}`;
-  el.id = id;
-  el.innerHTML = `
-    <div class="message-role">GenomeSpeak</div>
-    <div class="message-bubble" id="${id}-bubble">
-      <span class="typing-cursor"></span>
-    </div>
-  `;
-  container.appendChild(el);
-  scrollToBottom();
-  return id;
-}
-
-let streamBuffer = {};
-
-function appendToken(bubbleId, token) {
-  if (!streamBuffer[bubbleId]) streamBuffer[bubbleId] = '';
-  streamBuffer[bubbleId] += token;
-
-  const bubble = document.getElementById(`${bubbleId}-bubble`);
-  if (bubble) {
-    bubble.innerHTML = formatText(streamBuffer[bubbleId]) + '<span class="typing-cursor"></span>';
-    scrollToBottom();
-  }
-}
-
-function finalizeStreamingBubble(bubbleId) {
-  const bubble = document.getElementById(`${bubbleId}-bubble`);
-  if (bubble) {
-    bubble.innerHTML = formatText(streamBuffer[bubbleId] || '');
-  }
-
-  // Parse model info from the [Model: ...] prefix if present
-  const text = streamBuffer[bubbleId] || '';
-  const modelMatch = text.match(/\[Model: ([^\|]+) \| Thinking: ([^\]]+)\]/);
-  if (modelMatch) {
-    updateSelectionInfo(modelMatch[1].trim(), modelMatch[2].trim());
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n'); buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const ev = JSON.parse(line.slice(6));
+            if (ev.type === 'token') {
+              if (!cardId) { removeThinkingCard(thinkId); cardId = addAgentCard('grok'); }
+              appendToCard(cardId, ev.token);
+            } else if (ev.type === 'error') {
+              if (!cardId) { removeThinkingCard(thinkId); cardId = addAgentCard('grok'); }
+              appendToCard(cardId, '⚠️ ' + ev.message);
+            }
+          } catch {}
+        }
+      }
+      if (!cardId) { removeThinkingCard(thinkId); cardId = addAgentCard('grok'); }
+      finalizeCard(cardId);
+    }
+  } catch (err) {
+    removeThinkingCard(thinkId);
+    addSystem('⚠️ Grok connection error.');
+    console.error(err);
   }
 
-  delete streamBuffer[bubbleId];
-  scrollToBottom();
+  btn.disabled = false;
+  btn.querySelector('.grok-btn-text').textContent = 'Get Second Opinion';
+  st.streaming = false;
+  document.getElementById('runtimeDot').classList.remove('live');
+  document.getElementById('runtimeLabel').textContent = 'Ready';
 }
 
-function addThinkingIndicator() {
-  const id = 'thinking-' + Date.now();
-  const container = document.getElementById('chatMessages');
+// ── Rendering ──────────────────────────────────────────────────────────
+let _msgId = 0;
+const _buffers = {};
+
+function container() { return document.getElementById('chatMessages'); }
+function scrollBottom() { const c = container(); c.scrollTop = c.scrollHeight; }
+
+function addUserMsg(text) {
   const el = document.createElement('div');
+  el.className = 'msg-user';
+  el.innerHTML = `<div class="msg-user-bubble">${esc(text)}</div>`;
+  container().appendChild(el); scrollBottom();
+}
+
+function addAgentCard(mode) {
+  const id = 'card-' + (++_msgId);
+  _buffers[id] = '';
+
+  const META = {
+    patient: { label: '🌱 GenomeSpeak for You', meta: 'Plain-language summary', badge: 'Patient Mode' },
+    doctor:  { label: '🏥 Clinical Summary',     meta: 'Structured clinical report', badge: 'Doctor Mode' },
+    grok:    { label: '𝕏 Grok Second Opinion',  meta: 'grok-3-mini · xAI',          badge: 'Independent' },
+  };
+  const m = META[mode] || META.patient;
+
+  const el = document.createElement('div');
+  el.className = 'msg-agent';
   el.id = id;
-  el.className = 'message assistant';
   el.innerHTML = `
-    <div class="message-role">GenomeSpeak</div>
-    <div class="thinking-indicator">
-      <div class="thinking-dots">
-        <div class="thinking-dot"></div>
-        <div class="thinking-dot"></div>
-        <div class="thinking-dot"></div>
+    <div class="agent-card ${mode}">
+      <div class="agent-card-header">
+        <div class="agent-card-name">${m.label}</div>
+        <div class="agent-card-meta">${m.meta}</div>
+        <div class="agent-card-badges">
+          <span class="badge mode">${m.badge}</span>
+        </div>
       </div>
-      <span id="${id}-text">Classifying your report…</span>
-    </div>
-  `;
-  container.appendChild(el);
-  scrollToBottom();
+      <div class="agent-card-body" id="${id}-body"><span class="cursor"></span></div>
+    </div>`;
+  container().appendChild(el); scrollBottom();
   return id;
 }
 
-function updateThinkingIndicator(id, message) {
-  const el = document.getElementById(`${id}-text`);
-  if (el) el.textContent = message;
+function appendToCard(id, token) {
+  _buffers[id] = (_buffers[id] || '') + token;
+  const body = document.getElementById(`${id}-body`);
+  if (body) { body.innerHTML = formatResponse(_buffers[id]) + '<span class="cursor"></span>'; scrollBottom(); }
 }
 
-function removeThinkingIndicator(id) {
-  const el = document.getElementById(id);
-  if (el) el.remove();
+function finalizeCard(id) {
+  const body = document.getElementById(`${id}-body`);
+  if (body) body.innerHTML = formatResponse(_buffers[id] || '');
+  delete _buffers[id]; scrollBottom();
 }
 
-function addSystemMessage(text) {
-  const container = document.getElementById('chatMessages');
+function addThinkingCard(msg = 'Classifying your report…') {
+  const id = 'think-' + Date.now();
   const el = document.createElement('div');
-  el.style.cssText = 'text-align:center;font-size:12px;color:var(--text-tertiary);padding:4px 0;';
-  el.textContent = text.replace(/\*\*(.*?)\*\*/g, '$1'); // strip markdown bold for simplicity
-  container.appendChild(el);
-  scrollToBottom();
+  el.id = id; el.className = 'thinking-card';
+  el.innerHTML = `<div class="thinking-spinner"></div><span id="${id}-text">${msg}</span>`;
+  container().appendChild(el); scrollBottom();
+  return id;
+}
+function updateThinkingCard(id, msg) { const el = document.getElementById(`${id}-text`); if (el) el.textContent = msg; }
+function removeThinkingCard(id)      { const el = document.getElementById(id); if (el) el.remove(); }
+
+function addSystem(html) {
+  const el = document.createElement('div');
+  el.style.cssText = 'text-align:center;font-size:11px;color:var(--text-3);padding:2px 0';
+  el.innerHTML = html;
+  container().appendChild(el); scrollBottom();
 }
 
-function scrollToBottom() {
-  const c = document.getElementById('chatMessages');
-  c.scrollTop = c.scrollHeight;
-}
+// ── Text formatting ────────────────────────────────────────────────────
+function esc(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// Basic markdown: bold, newlines, model tag stripping
-function formatText(text) {
-  // Remove the [Model: ...] prefix that comes from the stream
+function formatResponse(text) {
+  // Strip the [Model: ...] prefix emitted by the orchestrator header lines
   text = text.replace(/^\[Model:.*?\]\n\n/, '');
+
+  // Section headers (### Heading or KEY FINDINGS style ALL-CAPS lines)
+  text = text.replace(/^###\s+(.+)$/gm, '<span class="section-head">$1</span>');
+  text = text.replace(/^([A-Z][A-Z &\/]+)$/gm, (_, h) =>
+    h.length > 3 && h.length < 60 ? `<span class="section-head">${h}</span>` : h
+  );
+
   // Bold
   text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  // Newlines
+  text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+  // Inline code / variants (e.g. *BRCA2* c.5266dupC)
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // ACMG classification badges
+  text = text.replace(/\b(Pathogenic|Likely Pathogenic)\b/g, '<span class="badge-acmg badge-pathogenic">$1</span>');
+  text = text.replace(/\b(Benign|Likely Benign)\b/g, '<span class="badge-acmg badge-benign">$1</span>');
+  text = text.replace(/\bVUS\b|\bVariant of Uncertain Significance\b/g, '<span class="badge-acmg badge-vus">VUS</span>');
+  text = text.replace(/\bTier 1\b/g, '<span class="badge-acmg badge-tier1">Tier 1</span>');
+  text = text.replace(/\bTier 2\b/g, '<span class="badge-acmg badge-tier2">Tier 2</span>');
+
+  // Bullet points
+  text = text.replace(/^\* (.+)$/gm, '<div style="display:flex;gap:6px;margin:3px 0"><span style="color:var(--text-3);flex-shrink:0">•</span><span>$1</span></div>');
+  text = text.replace(/^- (.+)$/gm,  '<div style="display:flex;gap:6px;margin:3px 0"><span style="color:var(--text-3);flex-shrink:0">–</span><span>$1</span></div>');
+
+  // Line breaks
+  text = text.replace(/\n\n/g, '<div style="height:8px"></div>');
   text = text.replace(/\n/g, '<br>');
+
   return text;
 }
 
-// ─── Selection info panel ─────────────────────────────────────────────────────
-
-function updateSelectionInfo(model, thinking) {
-  document.getElementById('selectionInfo').classList.add('visible');
-  document.getElementById('selModel').textContent = model.split('-preview')[0];
-  document.getElementById('selThinking').textContent = thinking;
-  document.getElementById('modelName').textContent = model.includes('pro') ? '3.1 Pro' : model.includes('lite') ? '3.1 Flash-Lite' : '3 Flash';
-
-  // Tier is inferred from model
-  const tier = model.includes('pro') ? 'TIER 3-4' : model.includes('lite') ? 'TIER 1' : 'TIER 2';
-  document.getElementById('selTier').textContent = tier;
-  document.getElementById('selOverride').textContent = thinking === 'HIGH' ? 'Safety rule' : 'None';
-}
-
-// ─── Init ─────────────────────────────────────────────────────────────────────
-
+// ── Init ───────────────────────────────────────────────────────────────
 updateSuggestions();
+updateRewriterMeta('patient');
 </script>
 </body>
 </html>
