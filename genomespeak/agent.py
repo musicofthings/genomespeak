@@ -317,13 +317,13 @@ class GenomeSpeakOrchestrator:
             user_id="user",
         )
 
-        from google.genai.types import Content, Part as AdkPart
+        from google.genai.types import Blob, Content, Part as AdkPart
         parts = []
         if pdf_bytes:
             # Inject PDF inline so the specialist agent sees it in its context window.
             # This bypasses ADK Artifact service, which is not pre-populated from the
             # FastAPI upload endpoint's in-memory session store.
-            parts.append(AdkPart(inline_data={"data": pdf_bytes, "mime_type": "application/pdf"}))
+            parts.append(AdkPart(inline_data=Blob(data=pdf_bytes, mime_type="application/pdf")))
         parts.append(AdkPart(text=enriched_query))
         user_content = Content(role="user", parts=parts)
 
