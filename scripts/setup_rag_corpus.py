@@ -5,39 +5,31 @@ One-time setup: creates and populates the Vertex AI RAG Engine corpus
 for GenomeSpeak with all clinical knowledge bases.
 
 Usage:
-    python scripts/setup_rag_corpus.py --project YOUR_PROJECT_ID
+    python scripts/setup_rag_corpus.py --project YOUR_PROJECT_ID --location us-west1
 
 What it does:
-    1. Creates a RAG corpus named 'genomespeak-knowledge'
-    2. Downloads / references public clinical knowledge sources
-    3. Imports them into the corpus as chunked documents
-    4. Outputs the corpus resource name → add to .env as GENOMESPEAK_RAG_CORPUS
-
-Knowledge bases indexed:
-    - ACMG/AMP 2015 variant classification criteria
-    - ClinGen curated gene-disease validity
-    - WHO / IFCC reference ranges (CBC, chemistry, lipids, thyroid)
-    - NCCN hereditary cancer guidelines (public summaries)
-    - CPIC pharmacogenomics guidelines
-    - NCI drug-gene interaction summaries
-    - MedlinePlus patient-facing disease summaries (common conditions)
+    1. Creates a RAG corpus (or re-uses an existing one with --corpus-resource)
+    2. Fetches each web source, strips HTML, stages to GCS, then imports
+    3. Inline text (WHO reference ranges) is staged to GCS then imported
+    4. Outputs the corpus resource name
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import logging
-import os
-import sys
+import re
 import time
+import urllib.request
+from html.parser import HTMLParser
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)s  %(message)s")
 logger = logging.getLogger(__name__)
 
+
 # ---------------------------------------------------------------------------
-# Reference range knowledge — defined first because KNOWLEDGE_SOURCES references it
+# WHO reference ranges — defined before KNOWLEDGE_SOURCES which references it
 # ---------------------------------------------------------------------------
 
 WHO_REFERENCE_RANGES_TEXT = """
@@ -168,17 +160,17 @@ Normal: 5 – 21
 Jaundice visible: > 34
 """
 
+
 # ---------------------------------------------------------------------------
-# Knowledge source definitions
-# Each entry: (name, description, gcs_uri_or_web_url, chunk_size)
-# For the hackathon we use publicly accessible URLs + GCS imports.
-# Production: mirror everything to a private GCS bucket for reliability.
+# Knowledge sources
+# All web_url entries are fetched → HTML stripped → staged to GCS → imported.
+# rag.import_files() does NOT accept raw HTTP URLs — only gs:// or Drive URLs.
 # ---------------------------------------------------------------------------
 
 KNOWLEDGE_SOURCES = [
     {
         "name": "acmg_variant_classification",
-        "description": "ACMG/AMP 2015 variant classification criteria — PS1-PS4, PM1-PM6, PP1-PP5, BA1, BS1-BS4, BP1-BP7",
+        "description": "ACMG/AMP 2015 variant classification criteria",
         "type": "web_url",
         "uri": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4544753/",
         "chunk_size": 512,
@@ -194,7 +186,7 @@ KNOWLEDGE_SOURCES = [
     },
     {
         "name": "cpic_guidelines_overview",
-        "description": "CPIC pharmacogenomics implementation guidelines — CYP2D6, CYP2C19, DPYD, TPMT, SLCO1B1",
+        "description": "CPIC pharmacogenomics implementation guidelines",
         "type": "web_url",
         "uri": "https://cpicpgx.org/guidelines/",
         "chunk_size": 512,
@@ -202,15 +194,15 @@ KNOWLEDGE_SOURCES = [
     },
     {
         "name": "who_reference_ranges",
-        "description": "WHO and IFCC reference intervals for complete blood count, metabolic panel, lipids, thyroid",
+        "description": "WHO and IFCC reference intervals for CBC, metabolic panel, lipids, thyroid",
         "type": "inline_text",
-        "content": WHO_REFERENCE_RANGES_TEXT,  # defined below
+        "content": WHO_REFERENCE_RANGES_TEXT,
         "chunk_size": 256,
         "chunk_overlap": 50,
     },
     {
         "name": "nccn_hereditary_cancer_overview",
-        "description": "NCCN hereditary breast/ovarian cancer and Lynch syndrome risk management guidelines (public summaries)",
+        "description": "NCCN BRCA hereditary cancer risk management guidelines",
         "type": "web_url",
         "uri": "https://www.cancer.gov/about-cancer/causes-prevention/genetics/brca-fact-sheet",
         "chunk_size": 512,
@@ -226,7 +218,7 @@ KNOWLEDGE_SOURCES = [
     },
     {
         "name": "clinvar_variant_summaries",
-        "description": "ClinVar variant classification summary — pathogenicity definitions and evidence standards",
+        "description": "ClinVar variant classification summary — pathogenicity definitions",
         "type": "web_url",
         "uri": "https://www.ncbi.nlm.nih.gov/clinvar/docs/clinsig/",
         "chunk_size": 512,
@@ -234,7 +226,7 @@ KNOWLEDGE_SOURCES = [
     },
     {
         "name": "oncokb_evidence_levels",
-        "description": "OncoKB therapeutic evidence levels — Levels 1-4, R1, R2 for oncology actionability",
+        "description": "OncoKB therapeutic evidence levels — Levels 1-4, R1, R2",
         "type": "web_url",
         "uri": "https://www.oncokb.org/levels",
         "chunk_size": 512,
@@ -242,7 +234,7 @@ KNOWLEDGE_SOURCES = [
     },
     {
         "name": "nipt_interpretation",
-        "description": "NIPT (non-invasive prenatal testing) result interpretation — trisomies, sex chromosome aneuploidies",
+        "description": "NIPT result interpretation — trisomies, sex chromosome aneuploidies",
         "type": "web_url",
         "uri": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6313310/",
         "chunk_size": 512,
@@ -250,7 +242,7 @@ KNOWLEDGE_SOURCES = [
     },
     {
         "name": "medlineplus_common_lab_tests",
-        "description": "MedlinePlus patient-facing explanations of common lab tests — CBC, CMP, lipids, HbA1c, thyroid",
+        "description": "MedlinePlus patient-facing explanations of common lab tests",
         "type": "web_url",
         "uri": "https://medlineplus.gov/lab-tests/",
         "chunk_size": 256,
@@ -260,126 +252,173 @@ KNOWLEDGE_SOURCES = [
 
 
 # ---------------------------------------------------------------------------
-# Main setup functions
+# HTML → plain text
 # ---------------------------------------------------------------------------
 
-def create_rag_corpus(project_id: str, location: str, display_name: str) -> str:
-    """
-    Create a new RAG corpus in Vertex AI.
-    Returns the corpus resource name.
-    """
-    from vertexai.preview import rag
-    import vertexai
+class _TextExtractor(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self._skip = False
+        self.chunks: list[str] = []
 
-    vertexai.init(project=project_id, location=location)
+    def handle_starttag(self, tag, attrs):
+        if tag in ("script", "style", "nav", "footer", "header"):
+            self._skip = True
 
-    logger.info("Creating RAG corpus: %s", display_name)
+    def handle_endtag(self, tag):
+        if tag in ("script", "style", "nav", "footer", "header"):
+            self._skip = False
 
-    embedding_config = rag.EmbeddingModelConfig(
-        publisher_model="publishers/google/models/text-embedding-005"
+    def handle_data(self, data):
+        if not self._skip:
+            stripped = data.strip()
+            if stripped:
+                self.chunks.append(stripped)
+
+
+def _html_to_text(html: str) -> str:
+    extractor = _TextExtractor()
+    extractor.feed(html)
+    text = " ".join(extractor.chunks)
+    # Collapse runs of whitespace
+    return re.sub(r"\s{2,}", " ", text).strip()
+
+
+def _fetch_url(url: str) -> str:
+    """Fetch a URL and return plain text (HTML stripped)."""
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "GenomeSpeak/1.0 (genomics-hackathon)"},
     )
-
-    corpus = rag.create_corpus(
-        display_name=display_name,
-        embedding_model_config=embedding_config,
-    )
-
-    logger.info("Corpus created: %s", corpus.name)
-    return corpus.name
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        raw = resp.read()
+        encoding = resp.headers.get_content_charset("utf-8")
+        html = raw.decode(encoding, errors="replace")
+    return _html_to_text(html)
 
 
-def import_web_url(corpus_name: str, source: dict) -> None:
-    """Import a web URL into the RAG corpus."""
+# ---------------------------------------------------------------------------
+# GCS staging helper — shared by both import paths
+# ---------------------------------------------------------------------------
+
+def _stage_to_gcs(
+    text: str,
+    blob_name: str,
+    project_id: str,
+    bucket_name: str,
+    location: str,
+) -> str:
+    """Upload text to GCS and return the gs:// URI."""
+    from google.cloud import storage
+
+    client = storage.Client(project=project_id)
+    bucket = client.bucket(bucket_name)
+    if not bucket.exists():
+        bucket.create(location=location)
+        logger.info("  Created staging bucket: gs://%s", bucket_name)
+
+    bucket.blob(blob_name).upload_from_string(text, content_type="text/plain; charset=utf-8")
+    gcs_uri = f"gs://{bucket_name}/{blob_name}"
+    logger.info("  Staged %d chars → %s", len(text), gcs_uri)
+    return gcs_uri
+
+
+# ---------------------------------------------------------------------------
+# Per-source import functions
+# ---------------------------------------------------------------------------
+
+def import_source(
+    corpus_name: str,
+    source: dict,
+    project_id: str,
+    bucket_name: str,
+    location: str,
+) -> None:
+    """Dispatch a single source to the correct import path."""
     from vertexai.preview import rag
 
-    logger.info("Importing web URL: %s → %s", source["name"], source["uri"])
+    name = source["name"]
+
+    if source["type"] == "web_url":
+        logger.info("Fetching web URL: %s → %s", name, source["uri"])
+        try:
+            text = _fetch_url(source["uri"])
+        except Exception as exc:
+            logger.warning("  Fetch failed for %s: %s — skipping", name, exc)
+            return
+        if len(text) < 200:
+            logger.warning("  Page too short (%d chars) — skipping %s", len(text), name)
+            return
+        content = text
+
+    elif source["type"] == "inline_text":
+        logger.info("Staging inline text: %s", name)
+        content = source["content"]
+
+    else:
+        logger.warning("Unknown source type '%s' for %s", source["type"], name)
+        return
+
+    blob_name = f"knowledge/{name}.txt"
+    gcs_uri = _stage_to_gcs(content, blob_name, project_id, bucket_name, location)
 
     try:
-        response = rag.import_files(
+        rag.import_files(
             corpus_name=corpus_name,
-            paths=[source["uri"]],
+            paths=[gcs_uri],
             chunk_size=source.get("chunk_size", 512),
             chunk_overlap=source.get("chunk_overlap", 100),
             max_embedding_requests_per_min=900,
         )
-        logger.info("  Import job: %s", response.metadata.partial_failures_count or "no failures")
+        logger.info("  Import submitted: %s", name)
     except Exception as exc:
-        logger.warning("  Failed to import %s: %s", source["name"], exc)
+        logger.warning("  Import failed for %s: %s", name, exc)
 
 
-def import_inline_text(
-    corpus_name: str,
-    source: dict,
-    project_id: str,
-    location: str,
-) -> None:
-    """
-    Write inline text content to a temporary GCS object then import.
-    Used for the WHO reference ranges that we maintain ourselves.
-    """
-    from google.cloud import storage
+# ---------------------------------------------------------------------------
+# Corpus creation
+# ---------------------------------------------------------------------------
+
+def create_rag_corpus(project_id: str, location: str, display_name: str) -> str:
     from vertexai.preview import rag
 
-    bucket_name = f"{project_id}-genomespeak-rag-staging"
-    blob_name   = f"knowledge/{source['name']}.txt"
+    logger.info("Creating RAG corpus: %s", display_name)
+    embedding_config = rag.EmbeddingModelConfig(
+        publisher_model="publishers/google/models/text-embedding-005"
+    )
+    corpus = rag.create_corpus(
+        display_name=display_name,
+        embedding_model_config=embedding_config,
+    )
+    logger.info("Corpus created: %s", corpus.name)
+    return corpus.name
 
-    logger.info("Staging inline text to GCS: gs://%s/%s", bucket_name, blob_name)
 
-    try:
-        gcs_client = storage.Client(project=project_id)
-        bucket     = gcs_client.bucket(bucket_name)
-
-        # Create bucket if it doesn't exist
-        if not bucket.exists():
-            bucket.create(location=location)
-            logger.info("  Created staging bucket: %s", bucket_name)
-
-        blob = bucket.blob(blob_name)
-        blob.upload_from_string(
-            source["content"],
-            content_type="text/plain",
-        )
-
-        gcs_uri = f"gs://{bucket_name}/{blob_name}"
-        logger.info("  Importing from GCS: %s", gcs_uri)
-
-        rag.import_files(
-            corpus_name=corpus_name,
-            paths=[gcs_uri],
-            chunk_size=source.get("chunk_size", 256),
-            chunk_overlap=source.get("chunk_overlap", 50),
-        )
-    except Exception as exc:
-        logger.warning("  Failed to import inline text %s: %s", source["name"], exc)
-
+# ---------------------------------------------------------------------------
+# Wait + smoke test
+# ---------------------------------------------------------------------------
 
 def wait_for_corpus_ready(corpus_name: str, timeout_seconds: int = 300) -> None:
-    """Poll until the corpus has at least one indexed file."""
     from vertexai.preview import rag
 
-    logger.info("Waiting for corpus indexing to complete (up to %ds)...", timeout_seconds)
+    logger.info("Waiting for corpus indexing (up to %ds)...", timeout_seconds)
     start = time.time()
-
     while time.time() - start < timeout_seconds:
         try:
             files = list(rag.list_files(corpus_name=corpus_name))
             if files:
-                logger.info("Corpus ready — %d files indexed", len(files))
+                logger.info("Corpus ready — %d file(s) indexed", len(files))
                 return
         except Exception:
             pass
-        time.sleep(10)
+        time.sleep(15)
+    logger.warning("Timeout — files may still be indexing in the background")
 
-    logger.warning("Timeout waiting for corpus — files may still be indexing")
 
-
-def run_smoke_test(corpus_name: str, project_id: str, location: str) -> None:
-    """Run a test RAG query to verify the corpus is working."""
+def run_smoke_test(corpus_name: str) -> None:
     from vertexai.preview import rag
-    import vertexai
 
     logger.info("Running smoke test query...")
-
     try:
         response = rag.retrieval_query(
             rag_resources=[rag.RagResource(rag_corpus=corpus_name)],
@@ -387,60 +426,60 @@ def run_smoke_test(corpus_name: str, project_id: str, location: str) -> None:
             similarity_top_k=3,
         )
         contexts = response.contexts.contexts
-        logger.info("Smoke test passed — retrieved %d contexts", len(contexts))
+        logger.info("Smoke test passed — %d contexts retrieved", len(contexts))
         for i, ctx in enumerate(contexts[:2]):
-            logger.info("  [%d] score=%.3f source=%s", i, ctx.score, ctx.source_uri[:60])
+            logger.info("  [%d] score=%.3f  %s", i, ctx.score, ctx.source_uri[:70])
     except Exception as exc:
         logger.warning("Smoke test failed: %s", exc)
 
 
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Set up GenomeSpeak RAG corpus")
-    parser.add_argument("--project", required=True, help="GCP project ID")
-    parser.add_argument("--location", default="us-central1", help="Vertex AI location")
-    parser.add_argument("--corpus-name", default="genomespeak-knowledge", help="Corpus display name")
-    parser.add_argument("--skip-existing", action="store_true", help="Skip if corpus already exists")
-    parser.add_argument("--corpus-resource", help="Existing corpus resource name (skip creation)")
+    parser.add_argument("--project",          required=True, help="GCP project ID")
+    parser.add_argument("--location",         default="us-west1", help="Vertex AI + GCS region")
+    parser.add_argument("--corpus-name",      default="genomespeak-knowledge")
+    parser.add_argument("--corpus-resource",  help="Existing corpus resource name (skip creation)")
     args = parser.parse_args()
+
+    import vertexai
+    vertexai.init(project=args.project, location=args.location)
 
     logger.info("GenomeSpeak RAG Corpus Setup")
     logger.info("Project:  %s", args.project)
     logger.info("Location: %s", args.location)
 
-    # Step 1: Create or use existing corpus
+    # Step 1: corpus
     if args.corpus_resource:
         corpus_name = args.corpus_resource
         logger.info("Using existing corpus: %s", corpus_name)
     else:
         corpus_name = create_rag_corpus(args.project, args.location, args.corpus_name)
 
-    # Step 2: Import all knowledge sources
+    bucket_name = f"{args.project}-genomespeak-rag-staging"
+
+    # Step 2: import all sources
     logger.info("Importing %d knowledge sources...", len(KNOWLEDGE_SOURCES))
-
     for source in KNOWLEDGE_SOURCES:
-        if source["type"] == "web_url":
-            import_web_url(corpus_name, source)
-        elif source["type"] == "inline_text":
-            import_inline_text(corpus_name, source, args.project, args.location)
-        time.sleep(2)  # Rate limit safety
+        import_source(corpus_name, source, args.project, bucket_name, args.location)
+        time.sleep(3)  # avoid rate limit bursts
 
-    # Step 3: Wait for indexing
+    # Step 3: wait
     wait_for_corpus_ready(corpus_name)
 
-    # Step 4: Smoke test
-    run_smoke_test(corpus_name, args.project, args.location)
+    # Step 4: smoke test
+    run_smoke_test(corpus_name)
 
-    # Step 5: Output environment variable
+    # Step 5: output
     print("\n" + "=" * 60)
     print("RAG corpus setup complete!")
-    print("Add this to your .env file:")
     print(f"GENOMESPEAK_RAG_CORPUS={corpus_name}")
     print("=" * 60)
 
-    # Also write to a local file for CI/CD pipelines
-    env_output = Path(".corpus_resource")
-    env_output.write_text(corpus_name)
-    logger.info("Corpus resource name written to .corpus_resource")
+    Path(".corpus_resource").write_text(corpus_name)
 
 
 if __name__ == "__main__":
