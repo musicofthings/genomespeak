@@ -178,6 +178,7 @@ async def chat(request: Request):
             async for token in orchestrator.process(
                 user_query=query,
                 pdf_artifact_name=artifact_name,
+                pdf_bytes=session.get("pdf_bytes"),
                 session_has_prior_report=has_prior,
             ):
                 full_response.append(token)

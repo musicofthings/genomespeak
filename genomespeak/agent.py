@@ -50,7 +50,7 @@ from vertexai.generative_models import GenerationConfig, GenerativeModel, Part, 
 from genomespeak.harness.classifier import QueryClassifierAgent
 from genomespeak.harness.models import ModelConfig, SelectionResult, ThinkingLevel, UserMode
 from genomespeak.harness.selector import ModelSelectorHarness
-from genomespeak.tools.pdf_ingest import build_multimodal_content, pdf_load_tool, pdf_save_tool
+from genomespeak.tools.pdf_ingest import pdf_save_tool
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -172,7 +172,7 @@ class DynamicAgentFactory:
         agent_name  = result.specialist_agent_name
         system_prompt = self.SYSTEM_PROMPTS.get(agent_name, ROUTINE_LAB_SYSTEM_PROMPT)
 
-        tools = [pdf_load_tool]
+        tools = []
         if cfg.use_search_grounding:
             tools.append(google_search)
 
@@ -237,6 +237,7 @@ class GenomeSpeakOrchestrator:
         self,
         user_query: str,
         pdf_artifact_name: Optional[str] = None,
+        pdf_bytes: Optional[bytes] = None,
         session_has_prior_report: bool = False,
     ) -> AsyncIterator[str]:
         """
@@ -288,11 +289,11 @@ class GenomeSpeakOrchestrator:
             description="Specialist interpretation → plain language rewrite",
         )
 
-        # Attach PDF artifact name to the query so specialist can load it
         enriched_query = user_query
         if pdf_artifact_name:
+            pdf_note = "The report PDF is attached above." if pdf_bytes else f"Report file: {pdf_artifact_name}"
             enriched_query = (
-                f"Report file: {pdf_artifact_name}\n\n"
+                f"{pdf_note}\n\n"
                 f"User question: {user_query}\n\n"
                 f"[Selection: {result.selection_rationale}]"
             )
@@ -317,10 +318,14 @@ class GenomeSpeakOrchestrator:
         )
 
         from google.genai.types import Content, Part as AdkPart
-        user_content = Content(
-            role="user",
-            parts=[AdkPart(text=enriched_query)],
-        )
+        parts = []
+        if pdf_bytes:
+            # Inject PDF inline so the specialist agent sees it in its context window.
+            # This bypasses ADK Artifact service, which is not pre-populated from the
+            # FastAPI upload endpoint's in-memory session store.
+            parts.append(AdkPart(inline_data={"data": pdf_bytes, "mime_type": "application/pdf"}))
+        parts.append(AdkPart(text=enriched_query))
+        user_content = Content(role="user", parts=parts)
 
         async for event in runner.run_async(
             user_id="user",
