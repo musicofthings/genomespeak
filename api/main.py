@@ -23,6 +23,8 @@ import uuid
 from pathlib import Path
 from typing import AsyncIterator
 
+from contextlib import asynccontextmanager
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,9 +34,10 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=os.getenv("GENOMESPEAK_LOG_LEVEL", "INFO"))
 
+PDF_TTL_SECONDS = int(os.getenv("GENOMESPEAK_PDF_TTL_HOURS", 24)) * 3600
+
 # ---------------------------------------------------------------------------
 # Singleton orchestrator — created once at startup, reused across all requests.
-# Avoids re-running vertexai.init() and re-constructing GenerativeModel per call.
 # ---------------------------------------------------------------------------
 
 _orchestrator = None
@@ -47,6 +50,29 @@ def get_orchestrator():
     return _orchestrator
 
 # ---------------------------------------------------------------------------
+# Background cleanup — purge PDF bytes from sessions older than PDF_TTL_SECONDS
+# ---------------------------------------------------------------------------
+
+async def _cleanup_loop():
+    while True:
+        await asyncio.sleep(3600)   # run every hour
+        cutoff = time.time() - PDF_TTL_SECONDS
+        purged = 0
+        for session in list(SESSION_STORE.values()):
+            if "pdf_bytes" in session and session.get("created_at", 0) < cutoff:
+                del session["pdf_bytes"]
+                session["pdf_purged"]    = True
+                session["pdf_purged_at"] = time.time()
+                purged += 1
+        if purged:
+            logger.info("Cleanup: purged PDF bytes from %d expired sessions", purged)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(_cleanup_loop())
+    yield
+
+# ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
 
@@ -54,6 +80,7 @@ app = FastAPI(
     title="GenomeSpeak API",
     description="AI-powered lab and genomics report interpreter",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -261,9 +288,23 @@ async def get_session(session_id: str):
     if session_id not in SESSION_STORE:
         raise HTTPException(status_code=404, detail="Session not found")
     session = SESSION_STORE[session_id]
-    # Don't expose raw pdf_bytes in the API response
     safe = {k: v for k, v in session.items() if k != "pdf_bytes"}
     return JSONResponse(safe)
+
+
+@app.delete("/session/{session_id}")
+async def delete_session(session_id: str):
+    """Immediately purge PDF bytes and history for a session (user-initiated)."""
+    if session_id not in SESSION_STORE:
+        raise HTTPException(status_code=404, detail="Session not found")
+    session = SESSION_STORE[session_id]
+    session.pop("pdf_bytes", None)
+    session["history"]       = []
+    session["last_analysis"] = ""
+    session["pdf_purged"]    = True
+    session["pdf_purged_at"] = time.time()
+    logger.info("Session data deleted by user request: %s", session_id)
+    return JSONResponse({"status": "deleted", "session_id": session_id})
 
 
 # ---------------------------------------------------------------------------

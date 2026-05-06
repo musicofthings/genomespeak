@@ -713,6 +713,83 @@ textarea.chat-input::placeholder { color: var(--text-3); }
 .trace-body::-webkit-scrollbar-thumb { background: #2d2f45; border-radius: 2px; }
 .trace-wrap.collapsed .trace-body { display: none; }
 
+/* Card action buttons (copy / export) */
+.card-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.agent-card:hover .card-actions { opacity: 1; }
+.card-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: inherit;
+  opacity: .7;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all .15s;
+}
+.card-btn:hover { opacity: 1; background: rgba(255,255,255,.1); }
+.card-btn.ok    { opacity: 1; color: #4ade80; border-color: #4ade80; }
+
+/* Privacy / data notice in sidebar */
+.privacy-box {
+  margin-top: 8px;
+  background: rgba(5,150,105,.06);
+  border: 1px solid rgba(5,150,105,.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.privacy-box strong { color: #059669; }
+.privacy-box-actions { display: flex; gap: 6px; margin-top: 8px; }
+.privacy-act-btn {
+  flex: 1;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 0;
+  font-size: 10px;
+  color: var(--text-2);
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all .15s;
+  text-align: center;
+}
+.privacy-act-btn:hover { border-color: var(--c-classifier); color: var(--c-classifier); }
+.privacy-act-btn.danger:hover { border-color: #ef4444; color: #ef4444; }
+
+/* Export bar above the input */
+.export-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.export-bar-label { font-size: 10px; color: var(--text-3); margin-right: 2px; }
+.exp-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 10px;
+  color: var(--text-2);
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all .15s;
+  display: flex; align-items: center; gap: 4px;
+}
+.exp-btn:hover { border-color: var(--c-classifier); color: var(--c-classifier); }
+
 /* Disclaimer */
 footer {
   background: #FFF8F0;
@@ -842,6 +919,16 @@ footer {
       <span class="grok-badge">grok-4.3</span>
     </button>
 
+    <!-- Data privacy notice -->
+    <div class="privacy-box">
+      <strong>🔒 Privacy</strong><br>
+      Uploaded reports are held in memory only. PDF bytes are auto-purged after <strong>24 hours</strong> and never written to disk.
+      <div class="privacy-box-actions">
+        <button class="privacy-act-btn" onclick="newSession()" title="Reset state and start fresh">↺ New session</button>
+        <button class="privacy-act-btn danger" onclick="deleteMyData()" title="Immediately delete your uploaded report from the server">🗑 Delete now</button>
+      </div>
+    </div>
+
   </aside>
 
   <!-- ── Chat ── -->
@@ -880,6 +967,13 @@ footer {
       </div>
     </div>
   </div><!-- /.chat-panes -->
+
+    <div class="export-bar">
+      <span class="export-bar-label">Export:</span>
+      <button class="exp-btn" onclick="exportConversation('md')">⬇ Markdown</button>
+      <button class="exp-btn" onclick="exportConversation('txt')">⬇ Plain text</button>
+      <button class="exp-btn" onclick="window.print()">🖨 Print / PDF</button>
+    </div>
 
     <div class="chat-input-area">
       <div class="input-row">
@@ -1358,7 +1452,9 @@ async function getGrokOpinion() {
 
 // ── Rendering ──────────────────────────────────────────────────────────
 let _msgId = 0;
-const _buffers = {};
+const _buffers   = {};
+const _cardTexts = {};   // persists after finalization for copy/export
+const _cardModes = {};   // mode label per card
 
 function container() { return document.getElementById('msgs-' + activeTab); }
 function scrollBottom() { const c = container(); c.scrollTop = c.scrollHeight; }
@@ -1372,12 +1468,13 @@ function addUserMsg(text) {
 
 function addAgentCard(mode) {
   const id = 'card-' + (++_msgId);
-  _buffers[id] = '';
+  _buffers[id]   = '';
+  _cardModes[id] = mode;
 
   const META = {
-    patient: { label: '🌱 GenomeSpeak for You', meta: 'Plain-language summary', badge: 'Patient Mode' },
-    doctor:  { label: '🏥 Clinical Summary',     meta: 'Structured clinical report', badge: 'Doctor Mode' },
-    grok:    { label: '𝕏 Grok Second Opinion',  meta: 'grok-3-mini · xAI',          badge: 'Independent' },
+    patient: { label: '🌱 GenomeSpeak for You', meta: 'Plain-language summary',    badge: 'Patient Mode' },
+    doctor:  { label: '🏥 Clinical Summary',     meta: 'Structured clinical report', badge: 'Doctor Mode'  },
+    grok:    { label: '𝕏 Grok Second Opinion',  meta: 'grok-4.3 · xAI',            badge: 'Independent'  },
   };
   const m = META[mode] || META.patient;
 
@@ -1391,6 +1488,10 @@ function addAgentCard(mode) {
         <div class="agent-card-meta">${m.meta}</div>
         <div class="agent-card-badges">
           <span class="badge mode">${m.badge}</span>
+        </div>
+        <div class="card-actions">
+          <button class="card-btn" id="${id}-copybtn" onclick="copyCard('${id}')" title="Copy to clipboard">⎘ Copy</button>
+          <button class="card-btn" onclick="downloadCard('${id}')" title="Download as text file">⬇ Save</button>
         </div>
       </div>
       <div class="agent-card-body" id="${id}-body"><span class="cursor"></span></div>
@@ -1406,6 +1507,7 @@ function appendToCard(id, token) {
 }
 
 function finalizeCard(id) {
+  _cardTexts[id] = _buffers[id] || '';   // persist raw text for copy/export
   const body = document.getElementById(`${id}-body`);
   if (body) body.innerHTML = formatResponse(_buffers[id] || '');
   delete _buffers[id]; scrollBottom();
@@ -1465,6 +1567,82 @@ function formatResponse(text) {
   text = text.replace(/\n/g, '<br>');
 
   return text;
+}
+
+// ── Copy / Export / Delete ─────────────────────────────────────────────
+function copyCard(id) {
+  const text = _cardTexts[id] || _buffers[id] || '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById(`${id}-copybtn`);
+    if (!btn) return;
+    const prev = btn.textContent;
+    btn.textContent = '✓ Copied';
+    btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = prev; btn.classList.remove('ok'); }, 1800);
+  });
+}
+
+function downloadCard(id) {
+  const text  = _cardTexts[id] || _buffers[id] || '';
+  const mode  = _cardModes[id] || 'response';
+  const fname = `genomespeak-${mode}-${new Date().toISOString().slice(0,10)}.txt`;
+  _triggerDownload(fname, text, 'text/plain');
+}
+
+function exportConversation(fmt) {
+  const tab   = activeTab;
+  const pane  = document.getElementById('msgs-' + tab);
+  const lines = [`# GenomeSpeak — ${tab === 'patient' ? 'Patient' : 'Doctor'} conversation`, `Date: ${new Date().toLocaleString()}`, ''];
+
+  pane.querySelectorAll('.msg-user .msg-user-bubble').forEach(el => {
+    lines.push('## Question', '', el.textContent.trim(), '');
+  });
+
+  // Pair agent cards with questions
+  pane.querySelectorAll('.msg-agent').forEach(el => {
+    const id   = el.id;
+    const mode = _cardModes[id] || tab;
+    const text = _cardTexts[id] || el.querySelector('.agent-card-body')?.innerText || '';
+    const META = { patient:'🌱 Patient Response', doctor:'🏥 Clinical Summary', grok:'𝕏 Grok Second Opinion' };
+    lines.push(`## ${META[mode] || 'Response'}`, '', text.trim(), '');
+  });
+
+  const content = lines.join('\n');
+  const ext     = fmt === 'md' ? 'md' : 'txt';
+  const mime    = fmt === 'md' ? 'text/markdown' : 'text/plain';
+  _triggerDownload(`genomespeak-${tab}-${new Date().toISOString().slice(0,10)}.${ext}`, content, mime);
+}
+
+function _triggerDownload(filename, content, mime) {
+  const a  = document.createElement('a');
+  a.href   = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function deleteMyData() {
+  const ids = [TABS.patient.sessionId, TABS.doctor.sessionId].filter(Boolean);
+  if (!ids.length) { addSystem('No active session data to delete.'); return; }
+  await Promise.all(ids.map(id =>
+    fetch(`${API}/session/${id}`, { method: 'DELETE' }).catch(() => {})
+  ));
+  ['patient','doctor'].forEach(tab => {
+    TABS[tab].sessionId    = null;
+    TABS[tab].artifactName = null;
+    TABS[tab].hasReport    = false;
+  });
+  _sharedFile = null;
+  document.getElementById('filePill').classList.remove('show');
+  document.getElementById('uploadCard').style.display = '';
+  document.getElementById('fileInput').value = '';
+  addSystem('🗑 Report data deleted from server.');
+}
+
+function newSession() {
+  // Hard-reset all frontend state then reload to clear any cached UI
+  deleteMyData().then(() => location.reload());
 }
 
 // ── Init ───────────────────────────────────────────────────────────────
