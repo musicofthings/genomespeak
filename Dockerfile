@@ -23,7 +23,8 @@ RUN pip install --prefix=/install \
     python-dotenv \
     fastapi \
     "uvicorn[standard]" \
-    httpx
+    httpx \
+    packaging
 
 # ── Stage 2: runtime image ────────────────────────────────────────────────────
 FROM python:3.11-slim AS runtime
