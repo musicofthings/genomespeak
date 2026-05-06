@@ -33,6 +33,20 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=os.getenv("GENOMESPEAK_LOG_LEVEL", "INFO"))
 
 # ---------------------------------------------------------------------------
+# Singleton orchestrator — created once at startup, reused across all requests.
+# Avoids re-running vertexai.init() and re-constructing GenerativeModel per call.
+# ---------------------------------------------------------------------------
+
+_orchestrator = None
+
+def get_orchestrator():
+    global _orchestrator
+    if _orchestrator is None:
+        from genomespeak.agent import GenomeSpeakOrchestrator
+        _orchestrator = GenomeSpeakOrchestrator()
+    return _orchestrator
+
+# ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
 
@@ -160,11 +174,9 @@ async def chat(request: Request):
         """Yield SSE-formatted bytes to the client."""
 
         try:
-            from genomespeak.agent import GenomeSpeakOrchestrator
+            orchestrator = get_orchestrator()
 
-            orchestrator = GenomeSpeakOrchestrator()
-
-            # Metadata event first — lets the frontend show which model is running
+            # Metadata event — lets the frontend show session context
             meta_event = {
                 "type":     "meta",
                 "session":  sid,
@@ -172,6 +184,9 @@ async def chat(request: Request):
                 "turn":     session["turn_count"],
             }
             yield f"data: {json.dumps(meta_event)}\n\n".encode()
+
+            # Immediate status so the UI shows activity before any LLM call
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Classifying your report…'})}\n\n".encode()
 
             full_response = []
 
@@ -181,10 +196,14 @@ async def chat(request: Request):
                 pdf_bytes=session.get("pdf_bytes"),
                 session_has_prior_report=has_prior,
             ):
+                # Intercept status sentinels emitted by the orchestrator
+                if token.startswith('\x00STATUS:') and token.endswith('\x00'):
+                    msg = token[8:-1]
+                    yield f"data: {json.dumps({'type': 'status', 'message': msg})}\n\n".encode()
+                    continue
                 full_response.append(token)
                 token_event = {"type": "token", "token": token}
                 yield f"data: {json.dumps(token_event)}\n\n".encode()
-                # Tiny sleep lets the event loop breathe between chunks
                 await asyncio.sleep(0)
 
             # Mark session as having processed a report

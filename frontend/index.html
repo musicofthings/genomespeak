@@ -874,11 +874,10 @@ async function sendMessage() {
       }),
     });
 
-    removeThinkingIndicator(thinkingId);
-    const bubbleId = addStreamingBubble();
     const reader   = resp.body.getReader();
     const decoder  = new TextDecoder();
     let buffer     = '';
+    let bubbleId   = null;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -892,11 +891,26 @@ async function sendMessage() {
         if (!line.startsWith('data: ')) continue;
         try {
           const event = JSON.parse(line.slice(6));
-          handleSSEEvent(event, bubbleId);
+          if (event.type === 'status') {
+            // Keep indicator visible, update its text
+            updateThinkingIndicator(thinkingId, event.message);
+          } else if (event.type === 'token' || event.type === 'error') {
+            // First real content — swap indicator for streaming bubble
+            if (!bubbleId) {
+              removeThinkingIndicator(thinkingId);
+              bubbleId = addStreamingBubble();
+            }
+            if (event.type === 'token') appendToken(bubbleId, event.token);
+            else appendToken(bubbleId, '⚠️ ' + (event.message || 'Unexpected error. Please try again.'));
+          }
         } catch (e) { /* ignore malformed */ }
       }
     }
 
+    if (!bubbleId) {
+      removeThinkingIndicator(thinkingId);
+      bubbleId = addStreamingBubble();
+    }
     finalizeStreamingBubble(bubbleId);
 
   } catch (err) {
@@ -908,16 +922,6 @@ async function sendMessage() {
   state.isStreaming = false;
   document.getElementById('sendBtn').disabled = false;
   document.getElementById('modelDot').classList.remove('active');
-}
-
-function handleSSEEvent(event, bubbleId) {
-  if (event.type === 'token') {
-    appendToken(bubbleId, event.token);
-  } else if (event.type === 'error') {
-    appendToken(bubbleId, '⚠️ ' + (event.message || 'Unexpected error. Please try again.'));
-  } else if (event.type === 'meta' || event.type === 'done') {
-    // handled elsewhere
-  }
 }
 
 // ─── Message rendering ────────────────────────────────────────────────────────
@@ -1003,12 +1007,17 @@ function addThinkingIndicator() {
         <div class="thinking-dot"></div>
         <div class="thinking-dot"></div>
       </div>
-      Analysing your report…
+      <span id="${id}-text">Classifying your report…</span>
     </div>
   `;
   container.appendChild(el);
   scrollToBottom();
   return id;
+}
+
+function updateThinkingIndicator(id, message) {
+  const el = document.getElementById(`${id}-text`);
+  if (el) el.textContent = message;
 }
 
 function removeThinkingIndicator(id) {

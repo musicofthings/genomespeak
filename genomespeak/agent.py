@@ -276,6 +276,13 @@ class GenomeSpeakOrchestrator:
             result.tier_overridden,
         )
 
+        model_short = (
+            "Gemini 3.1 Pro" if "3.1-pro" in result.model_config.model_id
+            else "Gemini 3 Flash" if "3-flash" in result.model_config.model_id
+            else "Gemini 3.1 Flash-Lite"
+        )
+        yield f'\x00STATUS:Analysing with {model_short} ({result.model_config.thinking_level.value} thinking)…\x00'
+
         # --- Step 3: Build agents ---
         specialist_agent  = self._factory.build_specialist_agent(result)
         plain_lang_agent  = self._factory.build_plain_language_agent(

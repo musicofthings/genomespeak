@@ -9,6 +9,7 @@ This is the only agent that sees raw user input before model selection.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Optional
@@ -140,15 +141,12 @@ class QueryClassifierAgent:
         session_has_prior_report: bool = False,
         pdf_filename: Optional[str] = None,
     ) -> QueryProfile:
-        """
-        Classify a user query. Returns a QueryProfile.
-        Runs synchronously on the calling thread — wrap in asyncio.to_thread
-        if calling from an async context.
-        """
+        """Classify a user query. Returns a QueryProfile."""
         prompt_parts = [self._build_prompt(user_query, session_has_prior_report, pdf_filename)]
 
         try:
-            response = self._model.generate_content(
+            response = await asyncio.to_thread(
+                self._model.generate_content,
                 prompt_parts,
                 generation_config=self._gen_config,
                 safety_settings=SAFETY_SETTINGS,
