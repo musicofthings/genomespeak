@@ -120,7 +120,7 @@ class QueryClassifierAgent:
 
     MODEL_ID = "gemini-3.1-flash-lite-preview"
 
-    def __init__(self, project_id: str, location: str = "us-central1"):
+    def __init__(self, project_id: str, location: str = "global"):
         self._project_id = project_id
         self._location = location
         vertexai.init(project=project_id, location=location)

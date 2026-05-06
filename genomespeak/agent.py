@@ -60,7 +60,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 PROJECT_ID = os.environ["GOOGLE_CLOUD_PROJECT"]
-LOCATION   = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
+LOCATION   = os.environ.get("GOOGLE_CLOUD_LOCATION", "global")
 RAG_CORPUS = os.environ.get("GENOMESPEAK_RAG_CORPUS", "")
 
 vertexai.init(project=PROJECT_ID, location=LOCATION)
