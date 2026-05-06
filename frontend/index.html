@@ -692,9 +692,10 @@ header {
 <script>
 // ─── State ────────────────────────────────────────────────────────────────────
 
-const API_BASE = window.location.protocol === 'file:'
-  ? 'https://genomespeak-2j73ftnc7q-el.a.run.app'  // local file → Cloud Run
-  : window.location.origin;                           // served from Cloud Run → same origin
+const CLOUD_RUN_URL = 'https://genomespeak-2j73ftnc7q-el.a.run.app';
+const API_BASE = window.location.origin.includes('run.app')
+  ? window.location.origin   // served from Cloud Run → same origin
+  : CLOUD_RUN_URL;            // local file or preview panel → Cloud Run
 
 let state = {
   sessionId:    null,
