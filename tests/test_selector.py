@@ -42,7 +42,7 @@ class TestTierMatrix:
             report_type=ReportType.ROUTINE_LAB,
         )
         result = self.harness.select(profile)
-        assert "flash_lite" in result.model_config.model_id
+        assert "flash-lite" in result.model_config.model_id
         assert result.model_config.thinking_level == ThinkingLevel.LOW
 
     def test_routine_tier4_gets_flash_high(self):
