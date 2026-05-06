@@ -37,98 +37,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)s  %(me
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Knowledge source definitions
-# Each entry: (name, description, gcs_uri_or_web_url, chunk_size)
-# For the hackathon we use publicly accessible URLs + GCS imports.
-# Production: mirror everything to a private GCS bucket for reliability.
-# ---------------------------------------------------------------------------
-
-KNOWLEDGE_SOURCES = [
-    {
-        "name": "acmg_variant_classification",
-        "description": "ACMG/AMP 2015 variant classification criteria — PS1-PS4, PM1-PM6, PP1-PP5, BA1, BS1-BS4, BP1-BP7",
-        "type": "web_url",
-        "uri": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4544753/",
-        "chunk_size": 512,
-        "chunk_overlap": 100,
-    },
-    {
-        "name": "acmg_secondary_findings_v3",
-        "description": "ACMG Secondary Findings v3.2 — actionable genes list",
-        "type": "web_url",
-        "uri": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9748286/",
-        "chunk_size": 512,
-        "chunk_overlap": 100,
-    },
-    {
-        "name": "cpic_guidelines_overview",
-        "description": "CPIC pharmacogenomics implementation guidelines — CYP2D6, CYP2C19, DPYD, TPMT, SLCO1B1",
-        "type": "web_url",
-        "uri": "https://cpicpgx.org/guidelines/",
-        "chunk_size": 512,
-        "chunk_overlap": 100,
-    },
-    {
-        "name": "who_reference_ranges",
-        "description": "WHO and IFCC reference intervals for complete blood count, metabolic panel, lipids, thyroid",
-        "type": "inline_text",
-        "content": WHO_REFERENCE_RANGES_TEXT,  # defined below
-        "chunk_size": 256,
-        "chunk_overlap": 50,
-    },
-    {
-        "name": "nccn_hereditary_cancer_overview",
-        "description": "NCCN hereditary breast/ovarian cancer and Lynch syndrome risk management guidelines (public summaries)",
-        "type": "web_url",
-        "uri": "https://www.cancer.gov/about-cancer/causes-prevention/genetics/brca-fact-sheet",
-        "chunk_size": 512,
-        "chunk_overlap": 100,
-    },
-    {
-        "name": "lynch_syndrome_mmr",
-        "description": "Lynch syndrome — MLH1, MSH2, MSH6, PMS2, EPCAM — clinical management",
-        "type": "web_url",
-        "uri": "https://www.ncbi.nlm.nih.gov/books/NBK1211/",
-        "chunk_size": 512,
-        "chunk_overlap": 100,
-    },
-    {
-        "name": "clinvar_variant_summaries",
-        "description": "ClinVar variant classification summary — pathogenicity definitions and evidence standards",
-        "type": "web_url",
-        "uri": "https://www.ncbi.nlm.nih.gov/clinvar/docs/clinsig/",
-        "chunk_size": 512,
-        "chunk_overlap": 100,
-    },
-    {
-        "name": "oncokb_evidence_levels",
-        "description": "OncoKB therapeutic evidence levels — Levels 1-4, R1, R2 for oncology actionability",
-        "type": "web_url",
-        "uri": "https://www.oncokb.org/levels",
-        "chunk_size": 512,
-        "chunk_overlap": 100,
-    },
-    {
-        "name": "nipt_interpretation",
-        "description": "NIPT (non-invasive prenatal testing) result interpretation — trisomies, sex chromosome aneuploidies",
-        "type": "web_url",
-        "uri": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6313310/",
-        "chunk_size": 512,
-        "chunk_overlap": 100,
-    },
-    {
-        "name": "medlineplus_common_lab_tests",
-        "description": "MedlinePlus patient-facing explanations of common lab tests — CBC, CMP, lipids, HbA1c, thyroid",
-        "type": "web_url",
-        "uri": "https://medlineplus.gov/lab-tests/",
-        "chunk_size": 256,
-        "chunk_overlap": 50,
-    },
-]
-
-# ---------------------------------------------------------------------------
-# Reference range knowledge — inlined as structured text
-# More reliable than scraping; this is the ground truth for RoutineLabAgent
+# Reference range knowledge — defined first because KNOWLEDGE_SOURCES references it
 # ---------------------------------------------------------------------------
 
 WHO_REFERENCE_RANGES_TEXT = """
@@ -258,6 +167,96 @@ AST:ALT > 2:1 suggests alcoholic liver disease
 Normal: 5 – 21
 Jaundice visible: > 34
 """
+
+# ---------------------------------------------------------------------------
+# Knowledge source definitions
+# Each entry: (name, description, gcs_uri_or_web_url, chunk_size)
+# For the hackathon we use publicly accessible URLs + GCS imports.
+# Production: mirror everything to a private GCS bucket for reliability.
+# ---------------------------------------------------------------------------
+
+KNOWLEDGE_SOURCES = [
+    {
+        "name": "acmg_variant_classification",
+        "description": "ACMG/AMP 2015 variant classification criteria — PS1-PS4, PM1-PM6, PP1-PP5, BA1, BS1-BS4, BP1-BP7",
+        "type": "web_url",
+        "uri": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4544753/",
+        "chunk_size": 512,
+        "chunk_overlap": 100,
+    },
+    {
+        "name": "acmg_secondary_findings_v3",
+        "description": "ACMG Secondary Findings v3.2 — actionable genes list",
+        "type": "web_url",
+        "uri": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9748286/",
+        "chunk_size": 512,
+        "chunk_overlap": 100,
+    },
+    {
+        "name": "cpic_guidelines_overview",
+        "description": "CPIC pharmacogenomics implementation guidelines — CYP2D6, CYP2C19, DPYD, TPMT, SLCO1B1",
+        "type": "web_url",
+        "uri": "https://cpicpgx.org/guidelines/",
+        "chunk_size": 512,
+        "chunk_overlap": 100,
+    },
+    {
+        "name": "who_reference_ranges",
+        "description": "WHO and IFCC reference intervals for complete blood count, metabolic panel, lipids, thyroid",
+        "type": "inline_text",
+        "content": WHO_REFERENCE_RANGES_TEXT,  # defined below
+        "chunk_size": 256,
+        "chunk_overlap": 50,
+    },
+    {
+        "name": "nccn_hereditary_cancer_overview",
+        "description": "NCCN hereditary breast/ovarian cancer and Lynch syndrome risk management guidelines (public summaries)",
+        "type": "web_url",
+        "uri": "https://www.cancer.gov/about-cancer/causes-prevention/genetics/brca-fact-sheet",
+        "chunk_size": 512,
+        "chunk_overlap": 100,
+    },
+    {
+        "name": "lynch_syndrome_mmr",
+        "description": "Lynch syndrome — MLH1, MSH2, MSH6, PMS2, EPCAM — clinical management",
+        "type": "web_url",
+        "uri": "https://www.ncbi.nlm.nih.gov/books/NBK1211/",
+        "chunk_size": 512,
+        "chunk_overlap": 100,
+    },
+    {
+        "name": "clinvar_variant_summaries",
+        "description": "ClinVar variant classification summary — pathogenicity definitions and evidence standards",
+        "type": "web_url",
+        "uri": "https://www.ncbi.nlm.nih.gov/clinvar/docs/clinsig/",
+        "chunk_size": 512,
+        "chunk_overlap": 100,
+    },
+    {
+        "name": "oncokb_evidence_levels",
+        "description": "OncoKB therapeutic evidence levels — Levels 1-4, R1, R2 for oncology actionability",
+        "type": "web_url",
+        "uri": "https://www.oncokb.org/levels",
+        "chunk_size": 512,
+        "chunk_overlap": 100,
+    },
+    {
+        "name": "nipt_interpretation",
+        "description": "NIPT (non-invasive prenatal testing) result interpretation — trisomies, sex chromosome aneuploidies",
+        "type": "web_url",
+        "uri": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6313310/",
+        "chunk_size": 512,
+        "chunk_overlap": 100,
+    },
+    {
+        "name": "medlineplus_common_lab_tests",
+        "description": "MedlinePlus patient-facing explanations of common lab tests — CBC, CMP, lipids, HbA1c, thyroid",
+        "type": "web_url",
+        "uri": "https://medlineplus.gov/lab-tests/",
+        "chunk_size": 256,
+        "chunk_overlap": 50,
+    },
+]
 
 
 # ---------------------------------------------------------------------------
