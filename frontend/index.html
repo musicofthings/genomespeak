@@ -73,7 +73,8 @@ header {
   background: linear-gradient(135deg, #6366F1, #8B5CF6);
   border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 17px;
+  color: #fff;
+  flex-shrink: 0;
 }
 .logo-text  { font-weight: 700; font-size: 16px; color: var(--text-1); }
 .logo-sub   { font-size: 10px; color: var(--text-3); letter-spacing: .04em; text-transform: uppercase; }
@@ -673,7 +674,15 @@ footer {
 
 <header>
   <a class="logo" href="#">
-    <div class="logo-icon">🧬</div>
+    <div class="logo-icon">
+      <svg width="22" height="26" viewBox="0 0 22 26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 1 C4 6 18 8 18 13 C18 18 4 20 4 25"/>
+        <path d="M18 1 C18 6 4 8 4 13 C4 18 18 20 18 25"/>
+        <line x1="4.5"  y1="6.5"  x2="17.5" y2="6.5"/>
+        <line x1="7.5"  y1="13"   x2="14.5" y2="13"/>
+        <line x1="4.5"  y1="19.5" x2="17.5" y2="19.5"/>
+      </svg>
+    </div>
     <div>
       <div class="logo-text">GenomeSpeak</div>
       <div class="logo-sub">Multi-Agent Medical AI</div>
@@ -683,8 +692,8 @@ footer {
   <div class="header-divider"></div>
 
   <div class="mode-toggle" id="modeToggle">
-    <button class="mode-btn patient active" data-mode="patient" onclick="setMode('patient')">🌱 Patient</button>
-    <button class="mode-btn doctor"          data-mode="doctor"  onclick="setMode('doctor')">🏥 Doctor</button>
+    <button class="mode-btn patient active" data-tab="patient" onclick="switchTab('patient')">🌱 Patient</button>
+    <button class="mode-btn doctor"          data-tab="doctor"  onclick="switchTab('doctor')">🏥 Doctor</button>
   </div>
 
   <div class="header-right">
@@ -781,17 +790,30 @@ footer {
 
   <!-- ── Chat ── -->
   <main class="chat-area">
-    <div class="chat-messages" id="chatMessages">
-      <div class="empty-state" id="emptyState">
+    <div class="chat-messages" id="msgs-patient">
+      <div class="empty-state">
         <div class="empty-agents">
           <div class="empty-agent" style="background:rgba(99,102,241,.1)">🔍</div>
           <div class="empty-agent" style="background:rgba(139,92,246,.1)">⚖️</div>
           <div class="empty-agent" style="background:rgba(59,130,246,.1)">🧬</div>
           <div class="empty-agent" style="background:rgba(5,150,105,.1)">📝</div>
         </div>
-        <div class="empty-title">Four agents, one answer</div>
-        <div class="empty-sub">Upload a lab or genomics report PDF, then ask a question. A pipeline of specialised AI agents will classify, reason, and respond — tailored to your audience.</div>
-        <div class="suggestions" id="emptySuggestions" style="justify-content:center;margin-top:16px"></div>
+        <div class="empty-title">Ask in plain language</div>
+        <div class="empty-sub">Upload a report and ask your question. The agent pipeline will explain your results in simple, clear terms — no medical jargon.</div>
+        <div class="suggestions" style="justify-content:center;margin-top:16px"></div>
+      </div>
+    </div>
+    <div class="chat-messages" id="msgs-doctor" hidden>
+      <div class="empty-state">
+        <div class="empty-agents">
+          <div class="empty-agent" style="background:rgba(99,102,241,.1)">🔍</div>
+          <div class="empty-agent" style="background:rgba(139,92,246,.1)">⚖️</div>
+          <div class="empty-agent" style="background:rgba(59,130,246,.1)">🧬</div>
+          <div class="empty-agent" style="background:rgba(5,150,105,.1)">📋</div>
+        </div>
+        <div class="empty-title">Clinical structured summary</div>
+        <div class="empty-sub">Upload a report and ask your question. Responses use clinical terminology, ACMG/CPIC/NCCN standards, and structured findings format.</div>
+        <div class="suggestions" style="justify-content:center;margin-top:16px"></div>
       </div>
     </div>
 
@@ -821,19 +843,14 @@ footer {
 const CLOUD_RUN_URL = 'https://genomespeak-2j73ftnc7q-el.a.run.app';
 const API = window.location.origin.includes('run.app') ? window.location.origin : CLOUD_RUN_URL;
 
-let st = {
-  sessionId:    null,
-  artifactName: null,
-  mode:         'patient',
-  streaming:    false,
-  hasReport:    false,
-  pipelineStart: null,
-  grokAvailable: false,
-  lastAnalysis:  '',
-  lastQuery:     '',
-  lastMode:      'patient',
-  traceId:       null,
+// Per-tab independent state — each tab keeps its own session and history
+const TABS = {
+  patient: { sessionId: null, artifactName: null, mode: 'patient', streaming: false, hasReport: false, pipelineStart: null, grokAvailable: false, lastAnalysis: '', lastQuery: '', lastMode: 'patient', traceId: null },
+  doctor:  { sessionId: null, artifactName: null, mode: 'doctor',  streaming: false, hasReport: false, pipelineStart: null, grokAvailable: false, lastAnalysis: '', lastQuery: '', lastMode: 'doctor',  traceId: null },
 };
+let activeTab = 'patient';
+let st = TABS.patient;   // always points to the active tab's state
+let _sharedFile = null;  // File object kept for re-upload to the other tab
 
 // ── Specialist metadata ────────────────────────────────────────────────
 const SPECIALISTS = {
@@ -851,12 +868,27 @@ const MODEL_LABELS = {
   'gemini-3.1-flash-lite-preview':  '3.1 Flash-Lite',
 };
 
-// ── Mode ───────────────────────────────────────────────────────────────
-function setMode(m) {
-  st.mode = m;
-  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
-  updateRewriterMeta(m);
+// ── Tab switching ──────────────────────────────────────────────────────
+function switchTab(tab) {
+  if (st.streaming) return;   // don't switch mid-stream
+  activeTab = tab;
+  st = TABS[tab];
+
+  // Show/hide message panes
+  document.getElementById('msgs-patient').hidden = (tab !== 'patient');
+  document.getElementById('msgs-doctor').hidden  = (tab !== 'doctor');
+
+  // Update header tab buttons
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+
+  // Sync sidebar to this tab's state
+  updateRewriterMeta(tab);
   updateSuggestions();
+  document.getElementById('grokBtn').classList.toggle('show', st.grokAvailable);
+  // If this tab has a report loaded, upload PDF to it now (lazy)
+  if (_sharedFile && !st.sessionId) {
+    uploadToTab(tab, _sharedFile);
+  }
 }
 
 // ── Pipeline helpers ───────────────────────────────────────────────────
@@ -885,7 +917,7 @@ function resetPipeline() {
   document.getElementById('specialist-name').textContent = 'Specialist Agent';
   document.getElementById('specialist-model').textContent = '—';
   document.getElementById('node-specialist').style.setProperty('--node-color','var(--c-unknown)');
-  updateRewriterMeta(st.mode);
+  updateRewriterMeta(activeTab);
   document.getElementById('pipelineTimer').textContent = '';
   st.pipelineStart = Date.now();
   clearThinkingTrace();
@@ -908,6 +940,11 @@ function handleAgentEvent(parts) {
     setNodeDetail('classifier', `${reportType.replace('_',' ')} · ${tier.replace('tier_','Tier ')}`);
     setNodeState('selector', 'running');
     setNodeDetail('selector', 'Selecting optimal model…');
+    // Start orchestrator trace early — show every decision as it's made
+    createThinkingTrace('Orchestrator reasoning…');
+    appendToThinkingTrace(
+      `▸ Classifier\n  Report type : ${reportType.replace('_', ' ')}\n  Complexity  : ${tier.replace('tier_','Tier ')}\n  Audience    : ${userMode}\n\n`
+    );
   }
 
   if (component === 'selected') {
@@ -922,20 +959,23 @@ function handleAgentEvent(parts) {
     document.getElementById('specialist-model').textContent = `${modelLabel} · ${thinking}`;
     document.getElementById('node-specialist').style.setProperty('--node-color', spec.color);
     setNodeDetail('specialist', spec.desc);
+    appendToThinkingTrace(
+      `▸ Model Selector\n  Specialist  : ${spec.name}\n  Model       : ${modelLabel}\n  Thinking    : ${thinking}\n\n`
+    );
   }
 
   if (component === 'specialist' && status === 'running') {
     setNodeState('specialist', 'running');
     setNodeDetail('specialist', 'Analysing report…');
     const spec = SPECIALISTS[args[0]] || { name: 'Specialist' };
-    createThinkingTrace(`${spec.name} reasoning…`);
+    appendToThinkingTrace(`▸ ${spec.name} — internal reasoning:\n`);
   }
   if (component === 'specialist' && status === 'done') {
     setNodeState('specialist', 'done');
     setNodeDetail('specialist', 'Analysis complete');
   }
   if (component === 'rewriter' && status === 'running') {
-    const mode = args[0] || st.mode;
+    const mode = args[0] || activeTab;
     updateRewriterMeta(mode);
     setNodeState('rewriter', 'running');
     setNodeDetail('rewriter', mode === 'patient' ? 'Writing plain-language summary…' : 'Writing clinical summary…');
@@ -955,8 +995,8 @@ function createThinkingTrace(label) {
       <span class="trace-toggle" id="${id}-toggle">▼ hide</span>
     </div>
     <div class="trace-body" id="${id}-body"></div>`;
-  document.getElementById('chatMessages').appendChild(wrap);
-  scrollChat();
+  container().appendChild(wrap);
+  scrollBottom();
   st.traceId = id;
   return id;
 }
@@ -967,7 +1007,7 @@ function appendToThinkingTrace(text) {
   body.textContent += text;
   // auto-scroll trace to bottom
   body.scrollTop = body.scrollHeight;
-  scrollChat();
+  scrollBottom();
 }
 function collapseThinkingTrace() {
   if (!st.traceId) return;
@@ -1010,13 +1050,11 @@ const SUGGESTIONS = {
   ],
 };
 function updateSuggestions() {
-  ['emptySuggestions'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.innerHTML = SUGGESTIONS[st.mode].map((q, i) =>
-      `<button class="suggestion-chip" data-mode="${st.mode}" data-idx="${i}" onclick="useSuggestion(this)">${q}</button>`
-    ).join('');
-  });
+  const el = container().querySelector('.suggestions');
+  if (!el) return;
+  el.innerHTML = SUGGESTIONS[activeTab].map((q, i) =>
+    `<button class="suggestion-chip" data-mode="${activeTab}" data-idx="${i}" onclick="useSuggestion(this)">${q}</button>`
+  ).join('');
 }
 function useSuggestion(btn) {
   const mode = btn.dataset.mode;
@@ -1035,35 +1073,45 @@ function onDragLeave()  { document.getElementById('uploadCard').classList.remove
 function onDrop(e)      { e.preventDefault(); onDragLeave(); const f = e.dataTransfer.files[0]; if (f) processFile(f); }
 function onFileSelect(e){ const f = e.target.files[0]; if (f) processFile(f); }
 
+async function uploadToTab(tab, file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('user_mode', tab);
+  if (TABS[tab].sessionId) fd.append('session_id', TABS[tab].sessionId);
+  try {
+    const r = await fetch(`${API}/upload`, { method: 'POST', body: fd });
+    const d = await r.json();
+    TABS[tab].sessionId    = d.session_id;
+    TABS[tab].artifactName = d.artifact_name;
+    TABS[tab].hasReport    = true;
+  } catch (err) {
+    console.error(`Upload failed for ${tab} tab:`, err);
+  }
+}
+
 async function processFile(file) {
   if (!file.name.toLowerCase().endsWith('.pdf')) { alert('Please upload a PDF.'); return; }
 
+  _sharedFile = file;
   document.getElementById('fileName').textContent = file.name;
   document.getElementById('fileSize').textContent = fmtBytes(file.size);
   document.getElementById('filePill').classList.add('show');
   document.getElementById('uploadCard').style.display = 'none';
   document.getElementById('inputHint').innerHTML = '<span>Report loaded — ask your first question below</span>';
 
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('user_mode', st.mode);
-  if (st.sessionId) fd.append('session_id', st.sessionId);
-
-  try {
-    const r = await fetch(`${API}/upload`, { method: 'POST', body: fd });
-    const d = await r.json();
-    st.sessionId    = d.session_id;
-    st.artifactName = d.artifact_name;
-    st.hasReport    = true;
-    addSystem(`📋 <strong>${file.name}</strong> uploaded (${fmtBytes(file.size)}) — ready for questions.`);
-  } catch (err) {
-    addSystem('⚠️ Upload failed. Please try again.');
-    console.error(err);
-  }
+  // Upload to both tabs in parallel so switching tabs never needs a re-upload
+  addSystem(`📋 <strong>${file.name}</strong> (${fmtBytes(file.size)}) — uploading to both modes…`);
+  await Promise.all([uploadToTab('patient', file), uploadToTab('doctor', file)]);
+  addSystem('✅ Ready — ask a question in either Patient or Doctor tab.');
 }
 
 function clearFile() {
-  st.artifactName = null; st.hasReport = false;
+  _sharedFile = null;
+  ['patient','doctor'].forEach(tab => {
+    TABS[tab].sessionId    = null;
+    TABS[tab].artifactName = null;
+    TABS[tab].hasReport    = false;
+  });
   document.getElementById('filePill').classList.remove('show');
   document.getElementById('uploadCard').style.display = '';
   document.getElementById('fileInput').value = '';
@@ -1085,7 +1133,7 @@ async function send() {
   const q = input.value.trim();
   if (!q || st.streaming) return;
 
-  document.getElementById('emptyState').style.display = 'none';
+  container().querySelector('.empty-state')?.remove();
   addUserMsg(q);
   input.value = ''; autoResize(input);
 
@@ -1102,7 +1150,7 @@ async function send() {
     const resp = await fetch(`${API}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: st.sessionId, query: q, user_mode: st.mode }),
+      body: JSON.stringify({ session_id: st.sessionId, query: q, user_mode: activeTab }),
     });
 
     const reader  = resp.body.getReader();
@@ -1130,12 +1178,12 @@ async function send() {
             if (!cardId) {
               collapseThinkingTrace();
               removeThinkingCard(thinkId);
-              cardId = addAgentCard(st.mode);
+              cardId = addAgentCard(activeTab);
             }
             tokens.push(ev.token);
             appendToCard(cardId, ev.token);
           } else if (ev.type === 'error') {
-            if (!cardId) { removeThinkingCard(thinkId); cardId = addAgentCard(st.mode); }
+            if (!cardId) { removeThinkingCard(thinkId); cardId = addAgentCard(activeTab); }
             appendToCard(cardId, '⚠️ ' + (ev.message || 'Something went wrong.'));
           }
         } catch {}
@@ -1145,7 +1193,7 @@ async function send() {
     // Store full response in client state so Grok works even if server restarts
     st.lastAnalysis = tokens.join('');
     st.lastQuery    = q;
-    st.lastMode     = st.mode;
+    st.lastMode     = activeTab;
 
     if (!cardId) { removeThinkingCard(thinkId); cardId = addAgentCard(st.mode); }
     finalizeCard(cardId);
@@ -1245,7 +1293,7 @@ async function getGrokOpinion() {
 let _msgId = 0;
 const _buffers = {};
 
-function container() { return document.getElementById('chatMessages'); }
+function container() { return document.getElementById('msgs-' + activeTab); }
 function scrollBottom() { const c = container(); c.scrollTop = c.scrollHeight; }
 
 function addUserMsg(text) {

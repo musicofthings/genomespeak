@@ -240,6 +240,7 @@ class GenomeSpeakOrchestrator:
         pdf_bytes: Optional[bytes] = None,
         session_has_prior_report: bool = False,
         user_mode_override: Optional[str] = None,
+        history: Optional[list] = None,
     ) -> AsyncIterator[str]:
         """
         Main processing pipeline. Yields response tokens as they stream.
@@ -305,14 +306,30 @@ class GenomeSpeakOrchestrator:
             description="Specialist interpretation → plain language rewrite",
         )
 
+        # Build conversation history so follow-up questions have full context
+        history_ctx = ""
+        if history:
+            recent = history[-6:]  # last 3 exchanges (6 messages)
+            lines = []
+            for turn in recent:
+                role = "User" if turn["role"] == "user" else "Assistant (prior response)"
+                content = turn["content"]
+                if turn["role"] == "assistant" and len(content) > 800:
+                    content = content[:800] + "\n…[truncated]"
+                lines.append(f"[{role}]: {content}")
+            history_ctx = "\n\nPrior conversation:\n" + "\n\n".join(lines) + "\n"
+
         enriched_query = user_query
         if pdf_artifact_name:
             pdf_note = "The report PDF is attached above." if pdf_bytes else f"Report file: {pdf_artifact_name}"
             enriched_query = (
-                f"{pdf_note}\n\n"
-                f"User question: {user_query}\n\n"
+                f"{pdf_note}"
+                f"{history_ctx}\n"
+                f"Current question: {user_query}\n\n"
                 f"[Selection: {result.selection_rationale}]"
             )
+        elif history_ctx:
+            enriched_query = f"{history_ctx}\nCurrent question: {user_query}"
 
         # --- Step 6: Stream ---
         # In production ADK deployment, Runner handles streaming automatically.

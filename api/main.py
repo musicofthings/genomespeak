@@ -196,6 +196,7 @@ async def chat(request: Request):
                 pdf_bytes=session.get("pdf_bytes"),
                 session_has_prior_report=has_prior,
                 user_mode_override=user_mode,
+                history=session.get("history", []),
             ):
                 # Intercept all \x00...\x00 sentinels emitted by the orchestrator
                 if token.startswith('\x00') and token.endswith('\x00'):
