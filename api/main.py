@@ -331,7 +331,7 @@ async def second_opinion(request: Request):
                         "Content-Type":  "application/json",
                     },
                     json={
-                        "model":  "grok-3-mini",
+                        "model":  "grok-4.3",
                         "messages": messages,
                         "stream": True,
                     },

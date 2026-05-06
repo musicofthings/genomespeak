@@ -327,6 +327,15 @@ header {
   max-height: calc(100vh - 98px);
 }
 
+/* Pane wrapper — single column by default, side-by-side on wide screens */
+.chat-panes {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -336,9 +345,56 @@ header {
   gap: 16px;
   scroll-behavior: smooth;
 }
+.chat-messages.tab-hidden { display: none; }
 
 .chat-messages::-webkit-scrollbar { width: 4px; }
 .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Pane tab label — only visible in split view */
+.pane-label {
+  display: none;
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  transition: color .15s, background .15s;
+}
+.pane-label:hover { color: var(--text-2); }
+.pane-label .pane-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; margin-right: 6px; opacity: .5; }
+
+/* Split view — screens ≥ 1280 px */
+@media (min-width: 1280px) {
+  .chat-panes {
+    flex-direction: row;
+  }
+  .chat-messages.tab-hidden {
+    display: flex !important;   /* both panes always visible */
+  }
+  /* Active tab gets a subtle top border accent */
+  .chat-messages.tab-active {
+    box-shadow: inset 0 2px 0 var(--c-classifier);
+  }
+  /* Divider between panes */
+  #msgs-patient {
+    border-right: 1px solid var(--border);
+  }
+  /* Pane labels visible in split mode */
+  .pane-label {
+    display: flex;
+    align-items: center;
+  }
+  .pane-label.patient-label { color: var(--c-patient); }
+  .pane-label.doctor-label  { color: var(--c-doctor);  }
+  /* Header tabs hidden in split mode — pane labels serve the same purpose */
+  .mode-toggle { display: none; }
+}
 
 /* Empty state */
 .empty-state {
@@ -783,14 +839,18 @@ footer {
         Get Second Opinion
         <div style="font-size:10px;font-weight:400;color:var(--text-3);margin-top:1px">Powered by Grok</div>
       </div>
-      <span class="grok-badge">grok-3-mini</span>
+      <span class="grok-badge">grok-4.3</span>
     </button>
 
   </aside>
 
   <!-- ── Chat ── -->
   <main class="chat-area">
-    <div class="chat-messages" id="msgs-patient">
+  <div class="chat-panes">
+    <div class="chat-messages tab-active" id="msgs-patient">
+      <div class="pane-label patient-label" onclick="switchTab('patient')">
+        <span class="pane-dot"></span>🌱 Patient View
+      </div>
       <div class="empty-state">
         <div class="empty-agents">
           <div class="empty-agent" style="background:rgba(99,102,241,.1)">🔍</div>
@@ -803,7 +863,10 @@ footer {
         <div class="suggestions" style="justify-content:center;margin-top:16px"></div>
       </div>
     </div>
-    <div class="chat-messages" id="msgs-doctor" hidden>
+    <div class="chat-messages tab-hidden" id="msgs-doctor">
+      <div class="pane-label doctor-label" onclick="switchTab('doctor')">
+        <span class="pane-dot"></span>🏥 Doctor View
+      </div>
       <div class="empty-state">
         <div class="empty-agents">
           <div class="empty-agent" style="background:rgba(99,102,241,.1)">🔍</div>
@@ -816,6 +879,7 @@ footer {
         <div class="suggestions" style="justify-content:center;margin-top:16px"></div>
       </div>
     </div>
+  </div><!-- /.chat-panes -->
 
     <div class="chat-input-area">
       <div class="input-row">
@@ -874,9 +938,12 @@ function switchTab(tab) {
   activeTab = tab;
   st = TABS[tab];
 
-  // Show/hide message panes
-  document.getElementById('msgs-patient').hidden = (tab !== 'patient');
-  document.getElementById('msgs-doctor').hidden  = (tab !== 'doctor');
+  // Show/hide panes (on narrow screens; media query keeps both visible on wide)
+  document.getElementById('msgs-patient').classList.toggle('tab-hidden', tab !== 'patient');
+  document.getElementById('msgs-doctor').classList.toggle('tab-hidden',  tab !== 'doctor');
+  // Active accent (visible in split view)
+  document.getElementById('msgs-patient').classList.toggle('tab-active', tab === 'patient');
+  document.getElementById('msgs-doctor').classList.toggle('tab-active',  tab === 'doctor');
 
   // Update header tab buttons
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
