@@ -314,8 +314,8 @@ class GenomeSpeakOrchestrator:
             for turn in recent:
                 role = "User" if turn["role"] == "user" else "Assistant (prior response)"
                 content = turn["content"]
-                if turn["role"] == "assistant" and len(content) > 800:
-                    content = content[:800] + "\n…[truncated]"
+                if turn["role"] == "assistant" and len(content) > 1500:
+                    content = content[:1500] + "\n…[truncated]"
                 lines.append(f"[{role}]: {content}")
             history_ctx = "\n\nPrior conversation:\n" + "\n\n".join(lines) + "\n"
 

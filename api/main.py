@@ -58,8 +58,12 @@ async def _cleanup_loop():
         await asyncio.sleep(3600)   # run every hour
         cutoff = time.time() - PDF_TTL_SECONDS
         purged = 0
-        for session in list(SESSION_STORE.values()):
-            if "pdf_bytes" in session and session.get("created_at", 0) < cutoff:
+        for sid in list(SESSION_STORE):
+            session = SESSION_STORE[sid]
+            # Use pdf_uploaded_at so active sessions aren't evicted; fall back to
+            # created_at for sessions that predate this field.
+            upload_ts = session.get("pdf_uploaded_at") or session.get("created_at", 0)
+            if "pdf_bytes" in session and upload_ts < cutoff:
                 del session["pdf_bytes"]
                 session["pdf_purged"]    = True
                 session["pdf_purged_at"] = time.time()
@@ -149,6 +153,7 @@ async def upload_report(
     # Store in session (production: await tool_context.save_artifact(artifact_name, ...))
     session["artifact_name"]    = artifact_name
     session["pdf_bytes"]        = pdf_bytes
+    session["pdf_uploaded_at"]  = time.time()
     session["user_mode"]        = user_mode
     session["has_prior_report"] = False
 
@@ -294,16 +299,11 @@ async def get_session(session_id: str):
 
 @app.delete("/session/{session_id}")
 async def delete_session(session_id: str):
-    """Immediately purge PDF bytes and history for a session (user-initiated)."""
+    """Immediately purge and remove a session (user-initiated)."""
     if session_id not in SESSION_STORE:
         raise HTTPException(status_code=404, detail="Session not found")
-    session = SESSION_STORE[session_id]
-    session.pop("pdf_bytes", None)
-    session["history"]       = []
-    session["last_analysis"] = ""
-    session["pdf_purged"]    = True
-    session["pdf_purged_at"] = time.time()
-    logger.info("Session data deleted by user request: %s", session_id)
+    SESSION_STORE.pop(session_id)
+    logger.info("Session deleted by user request: %s", session_id)
     return JSONResponse({"status": "deleted", "session_id": session_id})
 
 
