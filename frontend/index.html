@@ -1595,17 +1595,17 @@ function exportConversation(fmt) {
   const pane  = document.getElementById('msgs-' + tab);
   const lines = [`# GenomeSpeak — ${tab === 'patient' ? 'Patient' : 'Doctor'} conversation`, `Date: ${new Date().toLocaleString()}`, ''];
 
-  pane.querySelectorAll('.msg-user .msg-user-bubble').forEach(el => {
-    lines.push('## Question', '', el.textContent.trim(), '');
-  });
-
-  // Pair agent cards with questions
-  pane.querySelectorAll('.msg-agent').forEach(el => {
-    const id   = el.id;
-    const mode = _cardModes[id] || tab;
-    const text = _cardTexts[id] || el.querySelector('.agent-card-body')?.innerText || '';
-    const META = { patient:'🌱 Patient Response', doctor:'🏥 Clinical Summary', grok:'𝕏 Grok Second Opinion' };
-    lines.push(`## ${META[mode] || 'Response'}`, '', text.trim(), '');
+  const META = { patient:'🌱 Patient Response', doctor:'🏥 Clinical Summary', grok:'𝕏 Grok Second Opinion' };
+  pane.querySelectorAll('.msg-user, .msg-agent').forEach(el => {
+    if (el.classList.contains('msg-user')) {
+      const bubble = el.querySelector('.msg-user-bubble');
+      if (bubble) lines.push('## Question', '', bubble.textContent.trim(), '');
+    } else {
+      const id   = el.id;
+      const mode = _cardModes[id] || tab;
+      const text = _cardTexts[id] || el.querySelector('.agent-card-body')?.innerText || '';
+      lines.push(`## ${META[mode] || 'Response'}`, '', text.trim(), '');
+    }
   });
 
   const content = lines.join('\n');
